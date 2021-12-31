@@ -140,3 +140,5 @@ cython_debug/
 
 .DS_Store
 src/config*
+test/test_results/*
+data/benchmark_stimuli

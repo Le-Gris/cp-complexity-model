@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
 from numpy.random import default_rng
-import os
+import os, pickle
+from itertools import product
+
 
 def macrofeatures(i: int, k: int, l: int, m: int, s: int, path: str, filename: str, code: str,
                   s_list: list = None, save=True) -> object:
@@ -288,3 +290,9 @@ def generate_stimspace(n):
     stim_space = list(map(list, product([0, 1], repeat=n)))
     return np.array(stim_space, dtype='float64')
 
+def total_var(set):
+    return np.trace(np.cov(set))
+
+
+def gen_var(set):
+    return np.linalg.det(np.cov(set))
