@@ -16,7 +16,22 @@ def get_configuration(fname):
     
     with open(fname, 'r') as f:
         config = json.load(f)
-    return config['dataset']
+    return config['dataset'], config['data_dir'], config['exp_name'], config['mode']
+
+def create_dirstruct(data_dir, exp_name):
+
+    # Paths
+    exp_dir = os.path.join(data_dir, exp_name)
+    path_mf = os.path.join(exp_dir,  'macrofeatures')
+    path_cat = os.path.join(exp_dir, 'categories')
+
+    # Verify directory existence
+    dir_exists(exp_dir, path_mf, path_cat)
+
+    macro_fname = 'mf'
+
+    return path_mf, path_cat, macro_fname 
+
 
 def dir_exists(*args):
 
@@ -24,7 +39,7 @@ def dir_exists(*args):
         if not os.path.exists(path):
             os.mkdir(path)
 
-def generate_binary(i, k, l, m, s, s_list, d, pd_i, pd, mode, path_mf=path_mf, macro_fname=macro_fname, path_cat=path_cat):
+def generate_binary(i, k, l, m, s, s_list, d, pd_i, pd, mode, path_mf, macro_fname, path_cat):
     
     # Generate macrofeatures
     for k_i in k:
@@ -79,20 +94,10 @@ def makedir_cat(parent_dir, k, d, pdi, pd):
 
 def main():
     
-    config_fname, exp_name = parse_args()
-    config = get_configuration(config_fname)
-    mode = config['mode']
+    config_fname = parse_args()
+    config, data_dir, exp_name, mode = get_configuration(config_fname)
     
-    # Paths
-    curdir = os.path.dirname(__file__)
-    exp_dir = os.path.join(curdir, '..', 'data', exp_name)
-    path_mf = os.path.join(exp_dir,  'macrofeatures')
-    path_cat = os.path.join(exp_dir, 'categories')
-    
-    # Verify directory existence
-    dir_exists(exp_dir, path_mf, path_cat) 
-    
-    macro_fname = 'mf' 
+    path_mf, path_cat, macro_fname = create_dirstruct(data_dir, exp_name)
 
     if mode == 'binary':
         generate_binary(**config, path_mf=path_mf, macro_fname=macro_fname, path_cat=path_cat)
