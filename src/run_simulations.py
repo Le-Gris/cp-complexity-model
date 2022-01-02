@@ -1,6 +1,6 @@
 # Imports
 import os
-import src.neuralnet as NN
+import neuralnet as NN
 import torch
 import torch.nn as nn
 import numpy as np
@@ -10,6 +10,7 @@ from collections import OrderedDict
 import glob
 import time
 import argparse
+import json
 plt.ioff()
 
 # Get simulation configuration file
@@ -18,18 +19,18 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Run simulation experiments')
     parser.add_argument('-c', help='<config.json>', required=True)
     args = parser.parse_args()
-    return args.config
+    return args.c
 
 def get_configuration(fname):
 
     with open(fname, 'r') as f:
         config = json.load(f)
-    return config['sim']
+    return config['sim'], config['exp_name'], config['data_dir'], config['save_dir'], config['mode']
 
 # Function to get stimuli from hard drive
-def get_stimuli(cat_path):
+def get_stimuli(path):
     
-    categories = np.load(cat_path)
+    categories = np.load(path)
     catA = categories['a']
     catB = categories['b']
     stimuli = torch.as_tensor(np.concatenate((catA, catB)), dtype=torch.float32)
@@ -37,7 +38,40 @@ def get_stimuli(cat_path):
 
     return stimuli
 
-def labels(categoryA_size, categorynA_size):
+def create_dirstruct(save_dir, exp_name):
+
+    # Path
+    exp_save_dir = os.path.join(save_dir, exp_name)
+
+    # Verify directory existence
+    dir_exists(exp_save_dir)
+
+    return exp_save_dir
+
+
+def dir_exists(*args):
+
+    for path in args:
+        if not os.path.exists(path):
+            os.mkdir(path)
+
+
+def get_dataset_info(path):
+    
+    split_path = os.path.split(path)
+    
+    setnum = split_path[1]
+    setnum = setnum.split('.')[0]
+    setnum = setnum.split('_')[1]
+    
+    catcode = split_path[0]
+    catcode = os.path.split(catcode)[1]
+    
+    catcode = catcode + '-' + setnum
+
+    return catcode
+
+def get_labels(categoryA_size, categorynA_size):
 
     labels = [np.array([1, 0], dtype=float) if x < categoryA_size else np.array([0, 1], dtype=float) for x in
               range(categoryA_size + categorynA_size)]
@@ -86,7 +120,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.title('Autoencoder Running Loss')
     plt.ylabel('Loss')
     plt.xlabel('Epoch')
-    plt.savefig(os.paht.join(path, 'plots', 'ae_rloss.png'))
+    plt.savefig(os.path.join(path, 'plots', 'ae_rloss.png'))
     plt.close(1)
 
     plt.figure(2)
@@ -163,85 +197,69 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     code.append(cat_code)
 
     # Save data
-    np.savez_compressed(os.path.join(path, 'sim' + str(sim_num)), ae=ae_data, classifier=class_data, code=code)
+    np.savez_compressed(os.path.join(path, 'sim_' + str(sim_num)), ae=ae_data, classifier=class_data, code=code)
 
-def main():
+def main(**kwargs):
     
-    config_fname = parse_args()
+    # Load configuration and other parameters
+    if 'config_fname' in kwargs:
+        config_fname = kwargs['config_fname']
+    else:
+        config_fname = parse_args()
+    config, exp_name, data_dir, save_dir, mode = get_configuration(config_fname)
     
-    config = get_configuration(config_fname)
+    # Config
+    sim_params = config['sim_params']
+    layer_params = config['layer_params']
     
 
-
-
-
-
-
-
-
-
+    # Get save path and setup directory structure
+    save_path = create_dirstruct(save_dir, exp_name) 
+    sim_params['save_path'] = save_path
+    
+    # Dataset paths
+    path_cat = os.path.join(data_dir, exp_name, 'categories')
     category_paths = glob.glob(os.path.join(path_cat, '*'))
+    datasets = []
+    for path in category_paths:
+        d = glob.glob(os.path.join(path, '*'))
+        datasets += d
 
+    # Setup timer
     timer = []
-
-    total = len(category_paths)
+    total = len(datasets)
     print('Total number of simulations left to run: {}'.format(total))
 
-    num_list = np.arange(simruns_done+1, simruns_done+1+len(category_paths))
-    
-    for j, c_dir in enumerate(category_paths):
+    for j, p in enumerate(datasets):
         
-        ### Simulation specific information to add:
-        #### simnum, cat-code, stimuli, labels, savepath
-
-
-
-
-
-
-
-
-
-
-
+        # Timer
         s = time.time()
-
-        # Set labels
-        labels = torch.as_tensor(labels(2048, 2048), dtype=torch.float32)
+        
+        # Get labels
+        labels = torch.as_tensor(get_labels(2048, 2048), dtype=torch.float32)
+        
+        # Get stimuli
+        stimuli = get_stimuli(p)
 
         # Neural net layer config
-        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(256, 128), 'norm1_encoder': nn.BatchNorm1d(128),
-                                      'sig1_encoder': nn.ReLU()})
-        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(128, 256), 'norm1_decoder': nn.BatchNorm1d(256),
-                                      'sig2_decoder': nn.ReLU()})
-        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(128, 2), 'sig1_classifier': nn.Sigmoid()})
+        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']), 
+                                      'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out']), 'sig1_encoder': nn.ReLU()})
+        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']), 
+                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out']), 'sig2_decoder': nn.ReLU()})
+        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']), 
+                                         'sig1_classifier': nn.Sigmoid()})
+        
+        sim_params['encoder_config'] = encoder_config
+        sim_params['decoder_config'] = decoder_config
+        sim_params['classifier_config'] = classifier_config
 
-        # Get paths in category directory
-        paths = glob.glob(os.path.join(c_dir, '*'))
-
-
-        # Only choose sets where s = 0
-        if len(paths) < 32:
-            p = np.random.choice(paths, 1)[0]
-        else:
-            p = np.random.choice(paths[:32], 1)[0]
-
-        # Get stimuli
-        load_from = os.path.join(p)
-        stimuli = get_stimuli(load_from)
-
-        setnum = os.path.split(p)[1]
-        setnum = setnum.split('.')[0]
-        setnum = setnum.split('_')[1]
-
-        # Set sim parameters
-        sim_params = OrderedDict(
-            {'sim_num': num_list[j], 'cat_code': c_dir[-11:] + '-' + setnum, 'encoder_config': encoder_config, 'decoder_config': decoder_config,
-             'classifier_config': classifier_config, 'encoder_out_name': 'lin1_encoder', 'stimuli': stimuli,
-             'labels': labels, 'train_ratio': 0.8, 'AE_epochs': 15, 'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-5,
-             'AE_wd': 10e-5, 'class_epochs': 15, 'class_batch_size': 8, 'class_lr': 10e-2, 'class_wd': 10e-3,
-             'inplace_noise': True, 'save_path': save_path, 'verbose': False})
-
+        # Simulation specific info
+        catcode = get_dataset_info(p)
+        sim_params['sim_num'] = j
+        sim_params['cat_code'] = catcode 
+        sim_params['stimuli'] = stimuli
+        sim_params['labels'] = labels
+            
         # Run simulation
         sim_run(**sim_params)
 

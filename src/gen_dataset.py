@@ -39,7 +39,7 @@ def dir_exists(*args):
         if not os.path.exists(path):
             os.mkdir(path)
 
-def generate_binary(i, k, l, m, s, s_list, d, pd_i, pd, mode, path_mf, macro_fname, path_cat):
+def generate_binary(i, k, l, m, s, s_list, d, pd_i, pd, path_mf, macro_fname, path_cat):
     
     # Generate macrofeatures
     for k_i in k:
