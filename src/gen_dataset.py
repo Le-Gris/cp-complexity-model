@@ -4,17 +4,13 @@ import os
 import json
 import argparse
 
-# Paths
-path_mf = os.path.join(os.path.dirname(__file__), '..', 'data', 'macrofeatures')
-macro_filenames = 'mf'
-path_cat = os.path.join(os.path.dirname(__file__), '..', 'data', 'categories')
-
 def parse_args():
 
     parser = argparse.ArgumentParser(description='Generate the dataset for simulations')
     parser.add_argument('-c', help='<config.json>', required=True)
+    parser.add_argument('-n', help='experiment name', required=True)
     args = parser.parse_args()
-    return args.config
+    return args.config, args.n
 
 def get_configuration(fname):
     
@@ -22,7 +18,13 @@ def get_configuration(fname):
         config = json.load(f)
     return config['dataset']
 
-def generate_binary(i, k, l, m, s, s_list, d, pd_i, pd, mode, path_mf=path_mf, macro_filenames=macro_filenames, path_cat=path_cat):
+def dir_exists(*args):
+
+    for path in args:
+        if not os.path.exists(path):
+            os.mkdir(path)
+
+def generate_binary(i, k, l, m, s, s_list, d, pd_i, pd, mode, path_mf=path_mf, macro_fname=macro_fname, path_cat=path_cat):
     
     # Generate macrofeatures
     for k_i in k:
@@ -30,7 +32,7 @@ def generate_binary(i, k, l, m, s, s_list, d, pd_i, pd, mode, path_mf=path_mf, m
         if not os.path.exists(macro_dir):
             os.mkdir(macro_dir)
         
-        macrofeatures(i=i, k=k_i, l=l, m=m, s=s, path=macro_dir, filename=macro_filenames, code=str(k_i), s_list=s_list)
+        macrofeatures(i=i, k=k_i, l=l, m=m, s=s, path=macro_dir, filename=macro_fname, code=str(k_i), s_list=s_list)
     
     # Generate categories
     for k_i in k:
@@ -75,16 +77,25 @@ def makedir_cat(parent_dir, k, d, pdi, pd):
 
     return path
 
-
-
 def main():
     
-    config_fname = parse_args()
+    config_fname, exp_name = parse_args()
     config = get_configuration(config_fname)
     mode = config['mode']
     
+    # Paths
+    curdir = os.path.dirname(__file__)
+    exp_dir = os.path.join(curdir, '..', 'data', exp_name)
+    path_mf = os.path.join(exp_dir,  'macrofeatures')
+    path_cat = os.path.join(exp_dir, 'categories')
+    
+    # Verify directory existence
+    dir_exists(exp_dir, path_mf, path_cat) 
+    
+    macro_fname = 'mf' 
+
     if mode == 'binary':
-        generate_binary(**config)
+        generate_binary(**config, path_mf=path_mf, macro_fname=macro_fname, path_cat=path_cat)
     else:
         generate_continuous(**config)
 
