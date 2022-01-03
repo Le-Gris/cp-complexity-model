@@ -1,3 +1,5 @@
+__author__ = 'Solim LeGris'
+# Imports
 import numpy as np
 import copy
 import argparse 

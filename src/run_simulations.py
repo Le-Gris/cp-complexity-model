@@ -1,6 +1,9 @@
+__author__ = 'Solim LeGris'
+
 # Imports
 import os
 import neuralnet as NN
+import convnet as CNN
 import torch
 import torch.nn as nn
 import numpy as np

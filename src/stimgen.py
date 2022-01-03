@@ -1,3 +1,6 @@
+__author__ = 'Solim LeGris'
+
+# Imports 
 import numpy as np
 import pandas as pd
 from numpy.random import default_rng
