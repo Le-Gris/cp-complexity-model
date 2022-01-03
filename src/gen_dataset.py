@@ -37,7 +37,7 @@ def dir_exists(*args):
 
     for path in args:
         if not os.path.exists(path):
-            os.mkdir(path)
+            os.makedirs(path)
 
 def generate_binary(i, k, l, m, s, s_list, d, pd_i, pd, path_mf, macro_fname, path_cat):
     
@@ -45,7 +45,7 @@ def generate_binary(i, k, l, m, s, s_list, d, pd_i, pd, path_mf, macro_fname, pa
     for k_i in k:
         macro_dir = os.path.join(path_mf, str(k_i))
         if not os.path.exists(macro_dir):
-            os.mkdir(macro_dir)
+            os.mkdir(macro_dirs)
         
         macrofeatures(i=i, k=k_i, l=l, m=m, s=s, path=macro_dir, filename=macro_fname, code=str(k_i), s_list=s_list)
     
@@ -86,7 +86,7 @@ def makedir_cat(parent_dir, k, d, pdi, pd):
     dirname += '-' + str(pd)[0] + str(pd)[2]
     path = os.path.join(parent_dir, dirname)
     try:
-        os.mkdir(path)
+        os.makedirs(path)
     except:
         pass
 

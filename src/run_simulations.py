@@ -53,7 +53,7 @@ def dir_exists(*args):
 
     for path in args:
         if not os.path.exists(path):
-            os.mkdir(path)
+            os.makedirs(path)
 
 
 def get_dataset_info(path):
@@ -85,7 +85,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     path = os.path.join(save_path, 'sim_' + str(sim_num))
 
     try:
-        os.mkdir(path)
+        os.makedirs(path)
         os.mkdir(os.path.join(path, 'plots'))
         os.mkdir(os.path.join(path, 'cp'))
     except:

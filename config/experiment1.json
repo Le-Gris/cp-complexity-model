@@ -63,6 +63,14 @@
    },
    "sim": {
       "layer_params": {
+         "encoder_in": 256,
+         "encoder_out": 128,
+         "decoder_in": 128,
+         "decoder_out": 256,
+         "classifier_in": 128,
+         "classifier_out": 2
+      },
+      "sim_params": {
          "encoder_out_name": "lin1_encoder",
          "train_ratio": 0.8,
          "AE_epochs": 15,
@@ -76,14 +84,6 @@
          "class_wd": 0.01,
          "inplace_noise": true,
          "verbose": false
-      },
-      "sim_params": {
-         "encoder_in": 256,
-         "encoder_out": 128,
-         "decoder_in": 128,
-         "decoder_out": 256,
-         "classifier_in": 128,
-         "classifier_out": 2
       }
    },
    "mode": "binary",
