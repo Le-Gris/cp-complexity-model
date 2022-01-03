@@ -38,6 +38,7 @@ def main():
     exp1['dataset'] = {}
     exp1['sim'] = {}
     exp1['mode'] = 'binary'
+    exp1['model'] = 'nn'
     exp1['exp_name'] = 'exp1'
     exp1['data_dir'] = osp.abspath(osp.join(Path(__file__).parents[1], 'data'))
     exp1['save_dir'] = osp.abspath(osp.join(Path(__file__).parents[1], 'results'))

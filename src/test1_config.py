@@ -38,6 +38,7 @@ def main():
     test1['sim'] = {}
     test1['dataset'] = {}
     test1['mode'] = 'binary'
+    test1['mdoel'] = 'nn'
     test1['exp_name'] = 'test1'
     test1['data_dir'] = osp.abspath(osp.join(Path(__file__).parents[1], 'test', 'test_results', 'data'))
     test1['save_dir'] = osp.abspath(osp.join(Path(__file__).parents[1], 'test', 'test_results', 'results'))

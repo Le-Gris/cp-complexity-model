@@ -87,6 +87,7 @@
       }
    },
    "mode": "binary",
+   "model": "nn",
    "exp_name": "exp1",
    "data_dir": "/Users/solimlegris/Projects/cp-complexity-model/data",
    "save_dir": "/Users/solimlegris/Projects/cp-complexity-model/results"

@@ -16,6 +16,14 @@ import argparse
 import json
 plt.ioff()
 
+def model_import(model):
+    if model == 'nn':
+        import neuralnet as NN
+    elif: model == 'conv':
+        import convnet as NN
+    else:
+        raise Exception('Incorrect model type: use \'conv\' or \'nn\'')
+
 # Get simulation configuration file
 def parse_args():
 
@@ -28,7 +36,7 @@ def get_configuration(fname):
 
     with open(fname, 'r') as f:
         config = json.load(f)
-    return config['sim'], config['exp_name'], config['data_dir'], config['save_dir'], config['mode']
+    return config['sim'], config['exp_name'], config['data_dir'], config['save_dir'], config['model']
 
 # Function to get stimuli from hard drive
 def get_stimuli(path):
@@ -209,8 +217,11 @@ def main(**kwargs):
         config_fname = kwargs['config_fname']
     else:
         config_fname = parse_args()
-    config, exp_name, data_dir, save_dir, mode = get_configuration(config_fname)
+    config, exp_name, data_dir, save_dir, model = get_configuration(config_fname)
     
+    # Import model
+    model_import(model)
+
     # Config
     sim_params = config['sim_params']
     layer_params = config['layer_params']
