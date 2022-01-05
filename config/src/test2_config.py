@@ -1,3 +1,4 @@
+# Tester for convnet model. 
 import json
 import argparse
 from collections import OrderedDict
@@ -15,7 +16,7 @@ def parse_args():
 def sim_config():
     
     # Set layers parameters
-    layer_params = {'encoder_in': 256, 'encoder_out': 128, 'decoder_in':  128, 'decoder_out': 256, 'classifier_in': 128, 
+    layer_params = {'encoder_in_channels': 1, 'encoder_out_channels': 1, 'encoder_kernel': 8, 'stride': 2, 'decoder_in':  125, 'decoder_out': 256, 'classifier_in': 125, 
                     'classifier_out': 2}
     
     # Set sim parameters
@@ -32,35 +33,35 @@ def main():
     save_fname = parse_args()
 
     # Experiment 1 config
-    exp1 = {}
+    test2 = {}
     
     # Data set
-    exp1['dataset'] = {}
-    exp1['sim'] = {}
-    exp1['mode'] = 'binary'
-    exp1['model'] = 'nn'
-    exp1['exp_name'] = 'exp1'
-    exp1['data_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'data'))
-    exp1['save_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'results'))
-
-    ## Macrofeature parameters
-    exp1['dataset']['i'] = 16
-    exp1['dataset']['k'] = [i for i in range(1,13)]
-    exp1['dataset']['l'] = 32
-    exp1['dataset']['m'] = 8
-    exp1['dataset']['s'] = 0
-    exp1['dataset']['s_list'] = None
+    test2['dataset'] = {}
+    test2['sim'] = {}
+    test2['mode'] = 'binary'
+    test2['model'] = 'conv'
+    test2['exp_name'] = 'test1'
+    test2['data_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'test', 'test_results', 'data'))
+    test2['save_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'test' 'test_results', 'results'))
     
+    ## Macrofeature parameters
+    test2['dataset']['i'] = 1
+    test2['dataset']['k'] = [1,3,5]
+    test2['dataset']['l'] = 32
+    test2['dataset']['m'] = 8
+    test2['dataset']['s'] = 0
+    test2['dataset']['s_list'] = None
+
     ## Category parameters
-    exp1['dataset']['d'] = [i for i in range(2,12)] + [j for j in range(12, 30, 2)]
-    exp1['dataset']['pd_i'] = [k for k in range(1,13)]
-    exp1['dataset']['pd'] = [0.0, 0.1, 0.2, 0.4]
+    test2['dataset']['d'] = [1,5]
+    test2['dataset']['pd_i'] = [1,3,5]
+    test2['dataset']['pd'] = [0.0,0.1]
     
     # Simulation parameters
-    exp1['sim']['layer_params'], exp1['sim']['sim_params'] = sim_config() 
+    test2['sim']['layer_params'], test2['sim']['sim_params'] = sim_config() 
     
     with open(save_fname, 'w') as f:
-        json.dump(exp1, f, indent=3)
+        json.dump(test2, f, indent=3)
 
 if __name__ == "__main__":
     main()
