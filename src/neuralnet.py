@@ -100,7 +100,7 @@ class Net(nn.Module):
                 # Forward pass
                 x = self.forward(stimuli, decode=True)
                 loss = criterion(x, target)
-
+                
                 # Backward pass
                 loss.backward()
                 optimizer.step()
@@ -308,12 +308,14 @@ class Net(nn.Module):
         stimuli = stimuli.to(device)
 
         # Get weight matrix
-        state_dict = self.encoder.state_dict()
-        W = torch.clone(state_dict[layer_name+'.weight']).to(device)
-        W = W/torch.norm(W, dim=None)
+        #state_dict = self.encoder.state_dict()
+        #W = torch.clone(state_dict[layer_name+'.weight']).to(device)
+        #W = W/torch.norm(W, dim=None)
 
         # Compute inner representations for A and B
-        in_rep = torch.matmul(W, stimuli.T).T
+        #in_rep = torch.matmul(W, stimuli.T).T
+        
+        in_rep = self.forward(stimuli)
 
         # Get index that separates categories
         half_index = int(in_rep.shape[0]/2)
@@ -334,7 +336,8 @@ class Net(nn.Module):
         return_arr.append(withinB.cpu().item())
 
         if save:
-            return_arr.append(W.cpu().numpy())
+            return_arr.append(np.zeros(2))
+            #return_arr.append(W.cpu().numpy())
 
         if inner:
             return_arr.append(in_rep.cpu().numpy())
