@@ -45,7 +45,7 @@ def generate_binary(i, k, l, m, s, s_list, d, pd_i, pd, path_mf, macro_fname, pa
     for k_i in k:
         macro_dir = os.path.join(path_mf, str(k_i))
         if not os.path.exists(macro_dir):
-            os.mkdir(macro_dirs)
+            os.mkdir(macro_dir)
         
         macrofeatures(i=i, k=k_i, l=l, m=m, s=s, path=macro_dir, filename=macro_fname, code=str(k_i), s_list=s_list)
     
@@ -63,6 +63,28 @@ def generate_binary(i, k, l, m, s, s_list, d, pd_i, pd, path_mf, macro_fname, pa
                                 cur_dir = makedir_cat(parent_dir=path_cat, k=k_i, d=cur_d, pdi=cur_pdi, pd=cur_pd)
                                 categories(cur_set['M_A'], cur_set['M_B'], cur_set['N'], k=k_i, d=cur_d, pd_i=cur_pdi, 
                                            pd=cur_pd, path=cur_dir, filename='set_'+str(set_num), mf_name=set_name)
+
+def generate_binary_custom(i, k, l, m, s, s_list, custom, path_mf, macro_fname, path_cat):
+
+    # Generate macrofeatures
+    for k_i in k:
+        macro_dir = os.path.join(path_mf, str(k_i))
+        if not os.path.exists(macro_dir):
+            os.mkdir(macro_dir)
+
+        macrofeatures(i=i, k=k_i, l=l, m=m, s=s, path=macro_dir, filename=macro_fname, code=str(k_i), s_list=s_list)
+
+    # Generate categories
+    for c in custom:
+        # Open macrofeature file
+        curfile = os.path.join(path_mf, str(c[0]), 'mf_' + str(c[0]) + '.pkl')
+        with open(curfile, 'rb') as f:
+            mf_sets = pickle.load(f)
+        for set_num, set_name in enumerate(mf_sets):
+            cur_set = mf_sets[set_name]
+            cur_dir = makedir_cat(parent_dir=path_cat, k=c[0], d=c[1], pdi=c[2], pd=c[3])
+            categories(cur_set['M_A'], cur_set['M_B'], cur_set['N'], k=c[0], d=c[1], pd_i=c[2], pd=c[3], path=cur_dir,  filename='set_'+str(set_num), mf_name=set_name)
+
 
 def generate_continuous():
     pass
@@ -101,6 +123,8 @@ def main():
 
     if mode == 'binary':
         generate_binary(**config, path_mf=path_mf, macro_fname=macro_fname, path_cat=path_cat)
+    elif mode == 'binary_custom':
+        generate_binary_custom(**config, path_mf=path_mf, macro_fname=macro_fname, path_cat=path_cat)
     else:
         generate_continuous(**config)
 
