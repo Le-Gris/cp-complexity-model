@@ -2,8 +2,8 @@ __author__ = 'Solim LeGris'
 
 # Imports
 import os
-import neuralnet as NN
-import convnet as CNN
+import src.neuralnet as NN
+#import convnet as CNN
 import torch
 import torch.nn as nn
 import numpy as np
@@ -16,15 +16,7 @@ import argparse
 import json
 plt.ioff()
 
-def model_import(model):
-    if model == 'nn':
-        import neuralnet as NN
-    elif: model == 'conv':
-        import convnet as NN
-    else:
-        raise Exception('Incorrect model type: use \'conv\' or \'nn\'')
-
-# Get simulation configuration file
+# Get simulation configuration filename
 def parse_args():
 
     parser = argparse.ArgumentParser(description='Run simulation experiments')
@@ -32,6 +24,32 @@ def parse_args():
     args = parser.parse_args()
     return args.c
 
+def get_model_arch(model, layer_params):
+
+    if model == 'nn':
+        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']),
+                                      'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out']), 'sig1_encoder': nn.ReLU()})
+
+        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
+                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out']), 'sig2_decoder': nn.ReLU()})
+
+        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
+                                         'sig1_classifier': nn.Sigmoid()})
+    elif model == 'conv':
+        encoder_config = OrderedDict({'unflatten': nn.Unflatten(1, (1, 256)),
+                                      'lin1_encoder': nn.Conv1d(layer_params['encoder_in_channels'], layer_params['encoder_out_channels'], kernel_size=layer_params['encoder_kernel'], stride=layer_params['stride']),
+                                        'flatten': nn.Flatten(), 'norm1_encoder': nn.BatchNorm1d(layer_params['decoder_in']), 'sig1_encoder': nn.ReLU()})
+
+        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
+                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out']), 'sig2_decoder': nn.ReLU()})
+
+        classifier_config = OrderedDict({'linear1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']), 'sig1_classifier': nn.Sigmoid()})
+    else:
+        raise Exception('Incorrect model type: use \'conv\' or \'nn\'')
+
+    return encoder_config, decoder_config, classifier_config
+
+# Get json configuration as dict
 def get_configuration(fname):
 
     with open(fname, 'r') as f:
@@ -179,7 +197,6 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.savefig(os.path.join(path, 'plots','class_tr-acc.png'))
     plt.close(4)
 
-
     plt.figure(5)
     plt.plot(test_loss)
     plt.title('Test Loss')
@@ -219,9 +236,6 @@ def main(**kwargs):
         config_fname = parse_args()
     config, exp_name, data_dir, save_dir, model = get_configuration(config_fname)
     
-    # Import model
-    model_import(model)
-
     # Config
     sim_params = config['sim_params']
     layer_params = config['layer_params']
@@ -256,13 +270,8 @@ def main(**kwargs):
         stimuli = get_stimuli(p)
 
         # Neural net layer config
-        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']), 
-                                      'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out']), 'sig1_encoder': nn.ReLU()})
-        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']), 
-                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out']), 'sig2_decoder': nn.ReLU()})
-        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']), 
-                                         'sig1_classifier': nn.Sigmoid()})
-        
+        encoder_config, decoder_config, classifier_config = get_model_arch(model, layer_params)
+                         
         sim_params['encoder_config'] = encoder_config
         sim_params['decoder_config'] = decoder_config
         sim_params['classifier_config'] = classifier_config
