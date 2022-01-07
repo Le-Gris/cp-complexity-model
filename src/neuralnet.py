@@ -158,20 +158,24 @@ class Net(nn.Module):
         return running_loss, test_loss
 
     def train_classifier(self, num_epochs, train_ratio, stimuli, labels, batch_size, optimizer, criterion, scheduler,
-                         verbose=False):
+                         training, monitor, threshold, verbose=False):
         """
         Train the classifier portion of the neural net.
 
-        :param num_epochs: number of epochs to train the classifier for
+        :param num_epochs: number of epochs to train the classifier for, max_value when in 'early_stop mode'
+        :param train_ratio: percentage of dataset used for training
         :param optimizer: the optimizer to use to train the neural net
         :param criterion: the criterion to use for the loss
         :param train_ratio: portion of the dataset to be used for training versus testing
         :param stimuli: dataset
         :param labels: labels for dataset
-        :param batch_size:
+        :param batch_size: size of batch for training
         :param optimizer: the optimizer to use to train the neural net
         :param criterion: the criterion to use for the loss
         :param scheduler: monitor loss progression per epoch with patience parameter
+        :param training: training type \'fixed\' or \'early_stop\'
+        :param monitor: stop training depeding on \'loss\' or \'acc\' 
+        :param threshold: value of threshold at which to stop training
         :param verbose: print training and testing information to screen
         :return: four arrays containing training and testing information
         """
@@ -188,6 +192,15 @@ class Net(nn.Module):
         # Load datasets
         trainloader, testloader = load_dataset_class(train_ratio=train_ratio, stimuli=stimuli, labels=labels,
                                                            batch_size=batch_size)
+
+        # Monitor best model in case threshold is never reached
+        if training == 'early_stop':
+            if monitor == 'loss':
+                best = [math.inf, -1]
+            elif monitor == 'acc':
+                best = [0, -1]
+
+
         for epoch in range(num_epochs):
 
             # Save running loss
@@ -231,9 +244,35 @@ class Net(nn.Module):
 
             if verbose:
                 print('Classifier, epoch {} --> Test loss: {} \t Test accuracy: {}'.format(epoch, eval_loss, eval_acc))
+    
+            # Monitor 
+            if training == 'early_stop':
+                if monitor == 'loss':
+                    if eval_loss <= threshold:
+                        break
+                    elif eval_loss < best[0]:
+                        best = [eval_loss, i]
+                        torch.save({'state_dict': self.state_dict()}, './.best_model.pth')
+                elif monitor = 'acc':
+                    if test_accuracy >= threshold:
+                        break
+                    elif acc > best[0]:
+                        best = [acc, i]
+                        torch.save({'state_dict': self.state_dict()}, './.best_model.pth')
 
             # Scheduler
             scheduler.step(eval_loss)
+        
+        if i == num_epochs and i != best[1]:
+            # Load best model
+            best_model = torch.load('./.best_model.pth')
+            self.load_state_dict(best_model['state_dict'])
+            
+            # Return data up until best model
+            running_loss = running_loss[:best[1]+1]
+            train_accuracy = train_accuracy[:best[1]+1]
+            test_lost = test_loss[:best[1]+1]
+            test_accuracy = test_accuracy[:best[1]+1]
 
         return running_loss, train_accuracy, test_loss, test_accuracy
 
