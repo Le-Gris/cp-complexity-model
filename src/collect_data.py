@@ -20,7 +20,7 @@ def scrape_data(sim_dir, save_path):
     sim_list.sort(key=lambda p : int(os.path.split(p)[1].split('_')[1]))
 
     # Data to be gathered
-    columns = ['sim_run', 'cat_code', 'k', 'd', 'pd', 'pdi', 'init_loss_AE', 'min_loss_AE', 'avg_loss_diff_AE', 'init_loss_cl',
+    columns = ['sim_run', 'cat_code', 'k', 'd', 'pd', 'pdi', 'AE_epochs', 'init_loss_AE', 'min_loss_AE', 'avg_loss_diff_AE', 'init_loss_cl',
                'min_loss_cl', 'max_acc', 'avg_loss_diff_cl', 'w_A_init', 'w_B_init', 'bt_init', 'w_A_bef', 'w_B_bef', 'bt_bef', 'w_A_af',
                'w_B_af', 'bt_af', 'global_CP', 'avg_dist_w_A', 'avg_dist_w_B', 'avg_dist_w', 'avg_dist_bt']
 
@@ -61,6 +61,9 @@ def scrape_data(sim_dir, save_path):
 
         # Load auto-encoder data
         ae = sim_data['ae']
+
+        # Append number of AE epochs
+        row.append(len(ae[1]))
 
         # Append initial ae test loss
         row.append(ae[1][0])
