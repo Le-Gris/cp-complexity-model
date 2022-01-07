@@ -16,11 +16,16 @@
          "noise_factor": 0.1,
          "AE_lr": 0.0001,
          "AE_wd": 0.0001,
+         "AE_thresh": null,
+         "AE_patience": null,
          "class_epochs": 15,
          "class_batch_size": 8,
          "class_lr": 0.1,
          "class_wd": 0.01,
+         "training": "fixed",
          "inplace_noise": true,
+         "save_model": true,
+         "metric": "euclid",
          "verbose": false
       }
    },

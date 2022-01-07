@@ -7,6 +7,7 @@ from torch import utils
 import numpy as np
 from scipy.spatial import distance
 import torch.nn.functional as F
+import math
 
 class Net(nn.Module):
 
@@ -45,20 +46,23 @@ class Net(nn.Module):
         return x
 
     def train_autoencoder(self, num_epochs, stimuli, batch_size, noise_factor, optimizer, criterion, scheduler,
-                          inplace_noise=False, verbose=False):
+                          inplace_noise=False, verbose=False, training='fixed', patience=3, thresh=0.001):
         """
         This function trains the autoencoder portion of the neural net model
 
-        :param num_epochs: number of epochs to train for
+        :param num_epochs: number of epochs to train for or max number of epochs when in \'early_stop\' mode 
         :param stimuli:
         :param batch_size:
         :param noise_factor:
-        :param verbose: Print training and testing information to screen
-        :param conv:
-        :param scheduler:
         :param self: an instantiation of a neural net
         :param optimizer: the optimizer to use to train the neural net
         :param criterion: the criterion to use for the loss
+        :param scheduler: learning rate scheduler
+        :param inplace_noise: Boolean for training with or without in place noise at each epoch
+        :param verbose: Print training and testing information to screen
+        :param training: \'fixed\' or \'early_stop\'
+        :param patience: number of epochs to wait before stopping training
+        :param thresh: threshold value for which it is considered that change in loss is significant 
         :return: three arrays containing the training loss per batch, the training loss per epoch
         and the evaluation loss
         """
@@ -77,7 +81,13 @@ class Net(nn.Module):
         else:
             train_loaders.append(load_dataset_AE(stimuli=torch.clone(stimuli), batch_size=batch_size,
                                                      noise_factor=noise_factor))
-        
+       
+        if training == 'early_stop':
+            # Keep track of best validation loss
+            best_loss = math.inf
+            patience_count = 0
+
+        # Training differs depending on mode
         for epoch in range(num_epochs):
 
             cur_running_loss = 0.0
@@ -119,13 +129,39 @@ class Net(nn.Module):
             eval_loss = self.evaluate_AE(testloader, criterion)
             test_loss.append(eval_loss)
 
+            if training == 'early_stop':
+                if eval_loss < best_loss and math.abs(best_loss - eval_loss)>thresh:
+                    best_loss = eval_loss
+                    patience = 0
+                    torch.save({
+                                'epoch': epoch,
+                                'model_state_dict': self.state_dict(),
+                                }, './.best_model.pth')
+                else:
+                    patience_count += 1
+
+                    if patience_count == patience:
+                        # End training
+                        ## Load best model
+                        checkpoint = torch.load('./.best_model.pth')
+                        ## Delete temporary model file
+                        
+                        ## Load best model state dict 
+                        self.load_state_dict(checkpoint['model_state_dict'])
+                        ## Only return loss until best model epoch
+                        running_loss = running_loss[:len(running_loss) - patience] 
+                        eval_loss = eval_loss[:len(running_loss) - patience]
+                        epoch = checkpoint['epoch']
+                        
+                        return running_loss, test_loss, epoch                
+            
             if verbose:
                 print('Autoencoder, epoch {} --> Running Loss: {} \t Eval loss: {}'.format(epoch, cur_running_loss, eval_loss))
 
             # Scheduler
             scheduler.step(eval_loss)
 
-        return running_loss, test_loss
+        return running_loss, test_loss, epoch
 
     def train_classifier(self, num_epochs, train_ratio, stimuli, labels, batch_size, optimizer, criterion, scheduler,
                          verbose=False):
@@ -299,7 +335,7 @@ class Net(nn.Module):
             p.requires_grad = True
 
     @torch.no_grad()
-    def compute_cp(self, stimuli, layer_name, save=True, inner=False, metric='euclid'):
+    def compute_cp(self, stimuli, layer_name, inner=False, metric='euclid'):
 
         # Set model to eval mode
         self.eval()
@@ -318,6 +354,7 @@ class Net(nn.Module):
         #in_rep = torch.matmul(W, stimuli.T).T
         
         # This is measured following non-linear transformation
+        # Can implement it such as iteration until last element of Sequential which is activation 
         in_rep = self.forward(stimuli)
 
         # Get index that separates categories
@@ -334,6 +371,11 @@ class Net(nn.Module):
             between = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric=metric)
             withinA = distance.cdist(in_rep[:half_index], in_rep[:half_index], metric=metric)
             withinB = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric=metric)
+            
+            # Remove self-similarity values
+            torch.diagonal(withinA, 0).zero()
+            torch.diagonal(withinB, 0).zero()
+            
         else:
             raise Exception('Invalid distance metric: use \'euclid\' or \'cosine\'')
         
@@ -347,12 +389,10 @@ class Net(nn.Module):
         return_arr.append(withinA.cpu().item())
         return_arr.append(withinB.cpu().item())
 
-        if save:
-            return_arr.append(np.zeros(2))
-            #return_arr.append(W.cpu().numpy())
-
         if inner:
             return_arr.append(in_rep.cpu().numpy())
+        else:
+            return_arr.append(None)
 
         return return_arr
 
