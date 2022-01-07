@@ -13,10 +13,16 @@ class CleanTest(unittest.TestCase):
         self.entries.append(os.path.join(parentdir, 'test', 'fixtures', 'test1_config.json'))
         self.entries.append(os.path.join(parentdir, 'test', 'fixtures', 'test2_config.json'))
         self.entries.append(os.path.join(parentdir, 'test', 'fixtures', 'test3_config.json'))
-    
+    #TODO add assertions that verify tests... 
+    # Test 5 
+    def test_5(self):
+        print('\nRunning test 4: Test conv net on most difficult categories from exp. 1')
+        config, data_dir, exp_name, _ = sgd.get_configuration(self.entries[2])
+        srs.main(config_fname=self.entries[2])
+
     # Test 4
     def test_4(self):
-        print('\nRunning test 4: Test conv net on most difficult categories from experiment 1')
+        print('\nRunning test 4: Generate most difficult categories from exp. 1 and test conv net on them')
         config, data_dir, exp_name, _ = sgd.get_configuration(self.entries[2])
         path_mf, path_cat, macro_fname = sgd.create_dirstruct(data_dir, exp_name)
         sgd.generate_binary_custom(**config, path_mf=path_mf, macro_fname=macro_fname, path_cat=path_cat)
