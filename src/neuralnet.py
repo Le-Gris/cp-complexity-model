@@ -130,13 +130,10 @@ class Net(nn.Module):
             test_loss.append(eval_loss)
 
             if training == 'early_stop':
-                if eval_loss < best_loss and math.abs(best_loss - eval_loss)>thresh:
+                if eval_loss < best_loss and abs(best_loss - eval_loss)>thresh:
                     best_loss = eval_loss
                     patience = 0
-                    torch.save({
-                                'epoch': epoch,
-                                'model_state_dict': self.state_dict(),
-                                }, './.best_model.pth')
+                    torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
                 else:
                     patience_count += 1
 
@@ -144,16 +141,13 @@ class Net(nn.Module):
                         # End training
                         ## Load best model
                         checkpoint = torch.load('./.best_model.pth')
-                        ## Delete temporary model file
-                        
                         ## Load best model state dict 
                         self.load_state_dict(checkpoint['model_state_dict'])
                         ## Only return loss until best model epoch
                         running_loss = running_loss[:len(running_loss) - patience] 
                         eval_loss = eval_loss[:len(running_loss) - patience]
-                        epoch = checkpoint['epoch']
                         
-                        return running_loss, test_loss, epoch                
+                        return running_loss, test_loss            
             
             if verbose:
                 print('Autoencoder, epoch {} --> Running Loss: {} \t Eval loss: {}'.format(epoch, cur_running_loss, eval_loss))
@@ -161,7 +155,7 @@ class Net(nn.Module):
             # Scheduler
             scheduler.step(eval_loss)
 
-        return running_loss, test_loss, epoch
+        return running_loss, test_loss
 
     def train_classifier(self, num_epochs, train_ratio, stimuli, labels, batch_size, optimizer, criterion, scheduler,
                          verbose=False):
@@ -366,28 +360,31 @@ class Net(nn.Module):
             between = torch.cdist(in_rep[:half_index], in_rep[half_index:], p=2)
             withinA = torch.cdist(in_rep[:half_index], in_rep[:half_index], p=2)
             withinB = torch.cdist(in_rep[half_index:], in_rep[half_index:], p=2)
+
+            # Send to numpy
+            between = between.numpy()
+            withinA = withinA.numpy()
+            withinB = withinB.numpy()
         elif metric == 'cosine':
             # Need pairwise distance calculation
             between = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric=metric)
             withinA = distance.cdist(in_rep[:half_index], in_rep[:half_index], metric=metric)
             withinB = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric=metric)
-            
-            # Remove self-similarity values
-            torch.diagonal(withinA, 0).zero()
-            torch.diagonal(withinB, 0).zero()
-            
+            # Remove self-similarity values    
+            np.fill_diagonal(withinA, 0)
+            np.fill_diagonal(withinB, 0)
         else:
             raise Exception('Invalid distance metric: use \'euclid\' or \'cosine\'')
         
         # Return array
         return_arr = []
-
+        
         # Compute mean by removing the diagonal values for within since we don't care about it
-        withinA = withinA.sum()/(withinA.numel() - withinA.size()[0])
-        withinB = withinB.sum()/(withinB.numel() - withinB.size()[0])
-        return_arr.append(between.mean().cpu().item())
-        return_arr.append(withinA.cpu().item())
-        return_arr.append(withinB.cpu().item())
+        withinA = withinA.sum()/(withinA.size - withinA.shape[0])
+        withinB = withinB.sum()/(withinB.size - withinB.shape[0])
+        return_arr.append(between)
+        return_arr.append(withinA)
+        return_arr.append(withinB)
 
         if inner:
             return_arr.append(in_rep.cpu().numpy())
