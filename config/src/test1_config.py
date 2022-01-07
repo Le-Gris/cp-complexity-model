@@ -23,7 +23,8 @@ def sim_config():
     sim_params = OrderedDict({'encoder_out_name': 'lin1_encoder', 'train_ratio': 0.8, 'AE_epochs': 15,
                               'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-5,'AE_wd': 10e-5,
                               'AE_thresh': None, 'AE_patience': None, 'class_epochs': 15, 'class_batch_size': 8, 'class_lr': 10e-2,
-                              'class_wd': 10e-3, 'training':'fixed', 'inplace_noise': True,'save_model': True, 'metric': 'euclid', 'verbose': False})
+                              'class_wd': 10e-3, 'class_monitor': None, 'class_thresh': None, 'training':'fixed', 
+                              'inplace_noise': True,'save_model': True, 'metric': 'euclid', 'verbose': False})
 
     return layer_params, sim_params
 
