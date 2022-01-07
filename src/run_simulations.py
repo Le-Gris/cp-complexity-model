@@ -109,7 +109,7 @@ def get_labels(categoryA_size, categorynA_size):
 # Function that runs a simulation
 def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config, encoder_out_name,
             stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, AE_patience, AE_thresh, class_epochs,
-            class_batch_size, class_lr, class_wd, training, inplace_noise, save_path, save_model=True, metric='euclid', verbose=False):
+            class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, save_model=True, metric='euclid', verbose=False):
 
     path = os.path.join(save_path, 'sim_' + str(sim_num))
 
@@ -146,7 +146,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
                                                                 optimizer, criterion, scheduler, inplace_noise,
                                                                 verbose=verbose, training=training, patience=AE_patience, thresh=AE_thresh)
 
-    # Delete temporary model save (this should be move to training class once implemented)
+    # Delete temporary model (this should be moved to training class once implemented)
     if training == 'early_stop':
         os.remove('./.best_model.pth')
     
@@ -187,7 +187,12 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     running_loss, train_accuracy, test_loss, test_accuracy = neuralnet.train_classifier(class_epochs, train_ratio,
                                                                                         stimuli, labels,
                                                                                         class_batch_size, optimizer,
-                                                                                        criterion, scheduler, verbose)
+                                                                                        criterion, scheduler, training, 
+                                                                                        monitor=class_monitor, threshold=class_thresh, verbose=verbose)
+    
+    # Delete temporary model
+    if training == 'early_stop':
+        os.remove('./.best_model.pth')
 
     # Plot classifier training data
     plt.figure(3)
