@@ -108,17 +108,18 @@ def get_labels(categoryA_size, categorynA_size):
 
 # Function that runs a simulation
 def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config, encoder_out_name,
-            stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, class_epochs,
-            class_batch_size, class_lr, class_wd, inplace_noise, save_path, verbose=False):
+            stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, AE_patience, AE_thresh, class_epochs,
+            class_batch_size, class_lr, class_wd, training, inplace_noise, save_path, save_model=True, metric='euclid', verbose=False):
 
     path = os.path.join(save_path, 'sim_' + str(sim_num))
 
-    try:
+    # Setup directory structure
+    if not os.path.exists(path):
         os.makedirs(path)
         os.mkdir(os.path.join(path, 'plots'))
         os.mkdir(os.path.join(path, 'cp'))
-    except:
-        pass
+        if save_model:
+            os.mkdir(os.path.join(path, 'model_checkpoints'))
 
     # Setup neural net
     neuralnet = NN.Net(encoder_config=encoder_config, decoder_config=decoder_config,
@@ -127,8 +128,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     neuralnet = neuralnet.to(device)
 
     # Compute initial inner representations
-    initial = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=True)
-    np.savez_compressed(os.path.join(path, 'cp', 'cp_initial'), between=initial[0], withinA=initial[1], withinB=initial[2], weights=initial[3], inner=initial[4])
+    initial = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=True, metric=metric)
+    np.savez_compressed(os.path.join(path, 'cp', 'cp_initial'), between=initial[0], withinA=initial[1], withinB=initial[2], inner=initial[3])
+    if save_model:
+        torch.save({'state_dict': model.state_dict()}, os.path.join(path, 'model_checkpoints', 'init_checkpoint'))
 
     # Freeze classifier
     neuralnet.freeze(neuralnet.classifier)
@@ -139,10 +142,14 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         weight_decay=AE_wd)
     scheduler = ReduceLROnPlateau(optimizer, patience=0)
     criterion = nn.MSELoss()
-    running_loss_AE, test_loss_AE = neuralnet.train_autoencoder(AE_epochs, stimuli, AE_batch_size, noise_factor,
+    running_loss_AE, test_loss_AE, AE_epochs = neuralnet.train_autoencoder(AE_epochs, stimuli, AE_batch_size, noise_factor,
                                                                 optimizer, criterion, scheduler, inplace_noise,
-                                                                verbose=verbose)
+                                                                verbose=verbose, training=training, patience=AE_patience, thresh=AE_loss)
 
+    # Delete temporary model save (this should be move to training class once implemented)
+    if training == 'early_stop':
+        os.remove('./.best_model.pth')
+    
     # Plot AE training data
     plt.figure(1)
     plt.plot(running_loss_AE)
@@ -164,9 +171,11 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     neuralnet.freeze(neuralnet.decoder)
 
     # Compute CP and save
-    before = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=True)
-    np.savez_compressed(os.path.join(path, 'cp', 'cp_before'), between=before[0], withinA=before[1], withinB=before[2], weights=before[3], inner=before[4])
-
+    before = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=True, metric=metric)
+    np.savez_compressed(os.path.join(path, 'cp', 'cp_before'), between=before[0], withinA=before[1], withinB=before[2], inner=before[3])
+    if save_model:
+        torch.save({'model_state_dict': self.state_dict()}, os.path.join(model_save_path, 'AE_checkpoint.pth')) 
+    
     # Thaw classifier
     neuralnet.unfreeze(neuralnet.classifier)
 
@@ -214,8 +223,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.close(6)
 
     # Compute CP and save
-    after = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=True)
-    np.savez_compressed(os.path.join(path, 'cp','cp_after'), between=after[0], withinA=after[1], withinB=after[2], weights=after[3], inner=after[4])
+    after = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=True, metric=metric)
+    np.savez_compressed(os.path.join(path, 'cp','cp_after'), between=after[0], withinA=after[1], withinB=after[2], inner=after[3])
+    if save_model:
+        torch.save({'model_state_dict': self.state_dict()}, os.path.join(model_save_path, 'class_checkpoint.pth')) 
 
     # Stack autoencoder and classifier training and testing data
     ae_data = np.stack([running_loss_AE, test_loss_AE])
