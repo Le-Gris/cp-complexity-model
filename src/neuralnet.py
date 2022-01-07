@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 from torch import utils
 import numpy as np
+from scipy.spatial import distance
+import torch.nn.functional as F
 
 class Net(nn.Module):
 
@@ -297,7 +299,7 @@ class Net(nn.Module):
             p.requires_grad = True
 
     @torch.no_grad()
-    def compute_cp(self, stimuli, layer_name, save=True, inner=False):
+    def compute_cp(self, stimuli, layer_name, save=True, inner=False, metric='euclid'):
 
         # Set model to eval mode
         self.eval()
@@ -315,17 +317,27 @@ class Net(nn.Module):
         # Compute inner representations for A and B
         #in_rep = torch.matmul(W, stimuli.T).T
         
+        # This is measured following non-linear transformation
         in_rep = self.forward(stimuli)
 
         # Get index that separates categories
         half_index = int(in_rep.shape[0]/2)
 
-        # Compute distances between and within
-        between = torch.cdist(in_rep[:half_index], in_rep[half_index:], p=2)
-        withinA = torch.cdist(in_rep[:half_index], in_rep[:half_index], p=2)
-        withinB = torch.cdist(in_rep[half_index:], in_rep[half_index:], p=2)
-
-        # Create return array
+        # Compute pairwise distances between and within
+        if metric == 'euclid':
+            in_rep = F.normalize(in_rep)            
+            between = torch.cdist(in_rep[:half_index], in_rep[half_index:], p=2)
+            withinA = torch.cdist(in_rep[:half_index], in_rep[:half_index], p=2)
+            withinB = torch.cdist(in_rep[half_index:], in_rep[half_index:], p=2)
+        elif metric == 'cosine':
+            # Need pairwise distance calculation
+            between = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric=metric)
+            withinA = distance.cdist(in_rep[:half_index], in_rep[:half_index], metric=metric)
+            withinB = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric=metric)
+        else:
+            raise Exception('Invalid distance metric: use \'euclid\' or \'cosine\'')
+        
+        # Return array
         return_arr = []
 
         # Compute mean by removing the diagonal values for within since we don't care about it
@@ -343,6 +355,7 @@ class Net(nn.Module):
             return_arr.append(in_rep.cpu().numpy())
 
         return return_arr
+
 
 def load_dataset_AE(stimuli, batch_size, noise_factor=0.05):
 
