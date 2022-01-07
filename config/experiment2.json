@@ -73,7 +73,7 @@
       "sim_params": {
          "encoder_out_name": "lin1_encoder",
          "train_ratio": 0.8,
-         "AE_epochs": 15,
+         "AE_epochs": 50,
          "AE_batch_size": 8,
          "noise_factor": 0.1,
          "AE_lr": 0.0001,
