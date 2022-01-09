@@ -279,6 +279,18 @@ def categories(macrofeaturesA: object, macrofeaturesB: object, noise: object, k:
 
     return catA, catB, info
 
+def custom_continuous_dataset():
+
+    # Varying between-category distance
+
+
+    # Varying between-category distance
+ 
+    
+    if save: 
+        np.savez_compressed(os.path.join(path, filename), a=catA, b=catB, info=info)
+    
+    return catA, catB, info
 
 def generate_stimspace(n):
     """

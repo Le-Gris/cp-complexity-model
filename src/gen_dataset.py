@@ -1,16 +1,16 @@
-from src.stimgen import macrofeatures, categories 
+from stimgen import macrofeatures, categories 
 import pickle
 import os
 import json
 import argparse
+#import sys
 
 def parse_args():
 
     parser = argparse.ArgumentParser(description='Generate the dataset for simulations')
     parser.add_argument('-c', help='<config.json>', required=True)
-    parser.add_argument('-n', help='experiment name', required=True)
     args = parser.parse_args()
-    return args.config, args.n
+    return args.c
 
 def get_configuration(fname):
     
