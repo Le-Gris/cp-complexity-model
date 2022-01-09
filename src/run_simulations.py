@@ -3,7 +3,6 @@ __author__ = 'Solim LeGris'
 # Imports
 import os
 import src.neuralnet as NN
-#import convnet as CNN
 import torch
 import torch.nn as nn
 import numpy as np
@@ -36,7 +35,7 @@ def get_model_arch(model, layer_params):
         classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
                                          'sig1_classifier': nn.Sigmoid()})
     elif model == 'conv':
-        encoder_config = OrderedDict({'unflatten': nn.Unflatten(1, (1, 256)),
+        encoder_config = OrderedDict({'unflatten': nn.Unflatten(1, (1, layer_params['input_dim'])),
                                       'lin1_encoder': nn.Conv1d(layer_params['encoder_in_channels'], layer_params['encoder_out_channels'], kernel_size=layer_params['encoder_kernel'], stride=layer_params['stride']),
                                         'flatten': nn.Flatten(), 'norm1_encoder': nn.BatchNorm1d(layer_params['decoder_in']), 'sig1_encoder': nn.ReLU()})
 
@@ -51,10 +50,10 @@ def get_model_arch(model, layer_params):
 
 # Get json configuration as dict
 def get_configuration(fname):
-
+    
     with open(fname, 'r') as f:
         config = json.load(f)
-    return config['sim'], config['exp_name'], config['data_dir'], config['save_dir'], config['model']
+    return config['sim'], config['exp_name'], config['data_dir'], config['save_dir'], conig['mode'], config['model']
 
 # Function to get stimuli from hard drive
 def get_stimuli(path):
@@ -85,19 +84,24 @@ def dir_exists(*args):
             os.makedirs(path)
 
 
-def get_dataset_info(path):
+def get_dataset_info(path, mode='binary'):
+    
     
     split_path = os.path.split(path)
     
-    setnum = split_path[1]
-    setnum = setnum.split('.')[0]
-    setnum = setnum.split('_')[1]
+    if mode == 'binary' or mode == 'binary_custom':
+        setnum = split_path[1]
+        setnum = setnum.split('.')[0]
+        setnum = setnum.split('_')[1]
     
-    catcode = split_path[0]
-    catcode = os.path.split(catcode)[1]
+        catcode = split_path[0]
+        catcode = os.path.split(catcode)[1]
     
-    catcode = catcode + '-' + setnum
-
+        catcode = catcode + '-' + setnum
+    elif mode == 'cont':
+        catcode = split_path[1].split('_')[1]
+    else: 
+        raise Exception('Incorrect mode. Use mode=binary or mode=binary_custom or mode=cont')
     return catcode
 
 def get_labels(categoryA_size, categorynA_size):
@@ -250,7 +254,7 @@ def main(**kwargs):
         config_fname = kwargs['config_fname']
     else:
         config_fname = parse_args()
-    config, exp_name, data_dir, save_dir, model = get_configuration(config_fname)
+    config, exp_name, data_dir, save_dir, mode, model = get_configuration(config_fname)
     
     # Config
     sim_params = config['sim_params']
@@ -293,7 +297,7 @@ def main(**kwargs):
         sim_params['classifier_config'] = classifier_config
 
         # Simulation specific info
-        catcode = get_dataset_info(p)
+        catcode = get_dataset_info(p, sim_params[])
         sim_params['sim_num'] = j
         sim_params['cat_code'] = catcode 
         sim_params['stimuli'] = stimuli
@@ -311,7 +315,7 @@ def main(**kwargs):
             mean = np.mean(timer)
             print('Average run time: {}'.format(mean))
         else:
-            if j % 100 == 0:
+            if j % 25 == 0:
                 mean = np.mean(timer)
                 print('Average run time: {}'.format(mean))
 
