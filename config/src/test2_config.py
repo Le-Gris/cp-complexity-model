@@ -16,7 +16,7 @@ def parse_args():
 def sim_config():
     
     # Set layers parameters
-    layer_params = {'encoder_in_channels': 1, 'encoder_out_channels': 1, 'encoder_kernel': 8, 'stride': 2, 'decoder_in':  125, 'decoder_out': 256, 'classifier_in': 125, 
+    layer_params = {'input_dim': 256, 'encoder_in_channels': 1, 'encoder_out_channels': 1, 'encoder_kernel': 8, 'stride': 2, 'decoder_in':  125, 'decoder_out': 256, 'classifier_in': 125, 
                     'classifier_out': 2}
     
     # Set sim parameters

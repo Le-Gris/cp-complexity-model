@@ -16,14 +16,25 @@ def parse_args():
 def sim_config():
     
     # Set layers parameters
-    layer_params = {'encoder_in': 256, 'encoder_out': 128, 'decoder_in':  128, 'decoder_out': 256, 'classifier_in': 128, 
+    layer_params = {'input_dim': 256, 'encoder_in_channels': 1, 'encoder_out_channels': 1, 'encoder_kernel': 8, 'stride': 2, 'decoder_in':  125, 'decoder_out': 256, 'classifier_in': 125,
                     'classifier_out': 2}
+
+    # Set sim parameters
+    sim_params = OrderedDict({'encoder_out_name': 'lin1_encoder', 'train_ratio': 0.8, 'AE_epochs': 35,
+                              'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-5,'AE_wd': 10e-5,
+                              'AE_thresh': 0.001, 'AE_patience': 0.001, 'class_epochs': 35, 'class_batch_size': 8, 'class_lr': 10e-2,
+                              'class_wd': 10e-3, 'class_monitor': 'acc', 'class_thresh': 85, 'training': 'early_stop',
+                              'inplace_noise': True, 'save_model': True, 'metric':'cosine', 'verbose': False})    
+    
+    # Set layers parameters
+    #layer_params = {'encoder_in': 256, 'encoder_out': 128, 'decoder_in':  128, 'decoder_out': 256, 'classifier_in': 128, 
+    #                'classifier_out': 2}
     
     # Set sim parameters
-    sim_params = OrderedDict({'encoder_out_name': 'lin1_encoder', 'train_ratio': 0.8, 'AE_epochs': 35, 
-                              'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-5,'AE_wd': 10e-5, 
-                              'AE_thresh': 0.001, 'AE_patience': 3, 'class_epochs': 35, 'class_batch_size': 8, 'class_lr': 10e-2, 
-                              'class_wd': 10e-3, 'training': 'early_stop', 'class_monitor': 'loss', 'class_thresh': 0.01,  'inplace_noise': True, 'save_model': True, 'verbose': False, 'metric':'cosine'})
+    #sim_params = OrderedDict({'encoder_out_name': 'lin1_encoder', 'train_ratio': 0.8, 'AE_epochs': 35, 
+    #                          'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-5,'AE_wd': 10e-5, 
+    #                          'AE_thresh': 0.001, 'AE_patience': 3, 'class_epochs': 35, 'class_batch_size': 8, 'class_lr': 10e-2, 
+    #                          'class_wd': 10e-3, 'training': 'early_stop', 'class_monitor': 'loss', 'class_thresh': 0.01,  'inplace_noise': True, 'save_model': True, 'verbose': False, 'metric':'cosine'})
     
     return layer_params, sim_params
 
@@ -33,35 +44,35 @@ def main():
     save_fname = parse_args()
 
     # Experiment 1 config
-    exp1 = {}
+    exp2 = {}
     
     # Data set
-    exp1['dataset'] = {}
-    exp1['sim'] = {}
-    exp1['mode'] = 'binary'
-    exp1['model'] = 'nn'
-    exp1['exp_name'] = 'exp1'
-    exp1['data_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'data'))
-    exp1['save_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'results'))
+    exp2['dataset'] = {}
+    exp2['sim'] = {}
+    exp2['mode'] = 'binary'
+    exp2['model'] = 'conv'
+    exp2['exp_name'] = 'exp2'
+    exp2['data_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'data', 'binary'))
+    exp2['save_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'results'))
 
     ## Macrofeature parameters
-    exp1['dataset']['i'] = 16
-    exp1['dataset']['k'] = [i for i in range(1,13)]
-    exp1['dataset']['l'] = 32
-    exp1['dataset']['m'] = 8
-    exp1['dataset']['s'] = 0
-    exp1['dataset']['s_list'] = None
+    exp2['dataset']['i'] = 16
+    exp2['dataset']['k'] = [i for i in range(1,13)]
+    exp2['dataset']['l'] = 32
+    exp2['dataset']['m'] = 8
+    exp2['dataset']['s'] = 0
+    exp2['dataset']['s_list'] = None
     
     ## Category parameters
-    exp1['dataset']['d'] = [i for i in range(2,12)] + [j for j in range(12, 30, 2)]
-    exp1['dataset']['pd_i'] = [k for k in range(1,13)]
-    exp1['dataset']['pd'] = [0.0, 0.1, 0.2, 0.4]
+    exp2['dataset']['d'] = [i for i in range(2,12)] + [j for j in range(12, 30, 2)]
+    exp2['dataset']['pd_i'] = [k for k in range(1,13)]
+    exp2['dataset']['pd'] = [0.0]
     
     # Simulation parameters
-    exp1['sim']['layer_params'], exp1['sim']['sim_params'] = sim_config() 
+    exp2['sim']['layer_params'], exp2['sim']['sim_params'] = sim_config() 
     
     with open(save_fname, 'w') as f:
-        json.dump(exp1, f, indent=3)
+        json.dump(exp2, f, indent=3)
 
 if __name__ == "__main__":
     main()
