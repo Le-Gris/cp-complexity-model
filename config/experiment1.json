@@ -84,6 +84,8 @@
          "class_batch_size": 8,
          "class_lr": 0.1,
          "class_wd": 0.01,
+         "class_monitor": null,
+         "class_thresh": null,
          "training": "fixed",
          "inplace_noise": true,
          "save_model": true,
@@ -94,6 +96,6 @@
    "mode": "binary",
    "model": "nn",
    "exp_name": "exp1",
-   "data_dir": "/Users/solimlegris/Projects/cp-complexity-model/data",
+   "data_dir": "/Users/solimlegris/Projects/cp-complexity-model/data/binary",
    "save_dir": "/Users/solimlegris/Projects/cp-complexity-model/results"
 }
