@@ -200,7 +200,6 @@ class Net(nn.Module):
             elif monitor == 'acc':
                 best = [0, -1]
 
-
         for epoch in range(num_epochs):
 
             # Save running loss
@@ -253,7 +252,7 @@ class Net(nn.Module):
                     elif eval_loss < best[0]:
                         best = [eval_loss, i]
                         torch.save({'state_dict': self.state_dict()}, './.best_model.pth')
-                elif monitor = 'acc':
+                elif monitor == 'acc':
                     if test_accuracy >= threshold:
                         break
                     elif acc > best[0]:

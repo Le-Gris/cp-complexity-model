@@ -2,7 +2,7 @@ __author__ = 'Solim LeGris'
 
 # Imports
 import os
-import src.neuralnet as NN
+import neuralnet as NN
 import torch
 import torch.nn as nn
 import numpy as np
@@ -53,7 +53,7 @@ def get_configuration(fname):
     
     with open(fname, 'r') as f:
         config = json.load(f)
-    return config['sim'], config['exp_name'], config['data_dir'], config['save_dir'], conig['mode'], config['model']
+    return config['sim'], config['exp_name'], config['data_dir'], config['save_dir'], config['mode'], config['model'], config['dataset']['size']
 
 # Function to get stimuli from hard drive
 def get_stimuli(path):
@@ -254,7 +254,7 @@ def main(**kwargs):
         config_fname = kwargs['config_fname']
     else:
         config_fname = parse_args()
-    config, exp_name, data_dir, save_dir, mode, model = get_configuration(config_fname)
+    config, exp_name, data_dir, save_dir, mode, model, size = get_configuration(config_fname)
     
     # Config
     sim_params = config['sim_params']
@@ -272,7 +272,7 @@ def main(**kwargs):
     for path in category_paths:
         d = glob.glob(os.path.join(path, '*'))
         datasets += d
-
+    
     # Setup timer
     timer = []
     total = len(datasets)
@@ -284,7 +284,7 @@ def main(**kwargs):
         s = time.time()
         
         # Get labels
-        labels = torch.as_tensor(get_labels(2048, 2048), dtype=torch.float32)
+        labels = torch.as_tensor(get_labels(size, size), dtype=torch.float32)
         
         # Get stimuli
         stimuli = get_stimuli(p)
@@ -297,7 +297,7 @@ def main(**kwargs):
         sim_params['classifier_config'] = classifier_config
 
         # Simulation specific info
-        catcode = get_dataset_info(p, sim_params[])
+        catcode = get_dataset_info(p, mode)
         sim_params['sim_num'] = j
         sim_params['cat_code'] = catcode 
         sim_params['stimuli'] = stimuli

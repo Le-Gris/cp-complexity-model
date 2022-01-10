@@ -1,4 +1,4 @@
-from stimgen import macrofeatures, categories, continuous_dataset 
+from src.stimgen import macrofeatures, categories, continuous_dataset 
 import pickle
 import os
 import json
@@ -88,10 +88,10 @@ def generate_binary_custom(i, k, l, m, s, s_list, custom, path_mf, macro_fname, 
             categories(cur_set['M_A'], cur_set['M_B'], cur_set['N'], k=c[0], d=c[1], pd_i=c[2], pd=c[3], path=cur_dir,  filename='set_'+str(set_num), mf_name=set_name)
 
 
-def generate_continuous(num_cats, meanA, meanB, devA, devB, dim, size, path_cat):
+def generate_continuous(num_cat, meanA, meanB, devA, devB, dim, size, path_cat):
     
     # Loop through cat configurations
-    for c in range(num_cats): 
+    for c in range(num_cat): 
         # Generate dataset
         continuous_dataset(dim, meanA[c], devA[c], meanB[c], devB[c], size, path_cat, 'set_'+c, save=True)
         

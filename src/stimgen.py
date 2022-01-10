@@ -279,22 +279,26 @@ def categories(macrofeaturesA: object, macrofeaturesB: object, noise: object, k:
 
     return catA, catB, info
 
-def gen_cont_cat(dim, mean, deviation, size):
+def gen_cont_cat(dim, mean, deviation, size ):
     rng = np.random.default_rng()
     cat = []
     for i, d in enumerate(dim):
         cat.append(rng.normal(mean[i], dev[i], size))
     cat = np.array(cat) 
+    
     # Eventually add modes
     
-    return cat.T
+    return cat
 
-def continuous_dataset(dim, meanA, devA, meanB, devB, size, path, filename, save):
+def continuous_dataset(dim, meanA, devA, meanB, devB, size, threshold, rangeA, rangeB, path, filename, save):
     
     # Generate categories
     catA = gen_cont_cat(dim, meanA, devB, size)
     catB = gen_cont_cat(dim, meanB, devB, size)
     
+    # Remove overlap
+    catA, catB = remove_overlap(catA, catB, threshold, rangeA, rangeB)
+
     # Compute info
     ## Within and between distances
     withinA, withinB, between = compute_distance(catA, catB)
@@ -304,6 +308,16 @@ def continuous_dataset(dim, meanA, devA, meanB, devB, size, path, filename, save
         np.savez_compressed(os.path.join(path, filename), a=catA, b=catB, info=info)
     
     return catA, catB, info
+
+def remove_overlap(catA, catB, threshold, rangeA, rangeB):
+    for i, x in enumerate(catA[0]):
+        if x >= threshold:
+            catA[0][i] = np.random.uniform(rangeA[0], rangeB[1])
+    for i, x in enumerate(catB[0]):
+        if x <= 6:
+            catB[0][i] = np.random.uniform(rangeB[0], rangeB[1])
+    
+    return catA, catB
 
 def compute_distance(catA, catB):
 
