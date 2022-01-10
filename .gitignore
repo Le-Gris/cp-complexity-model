@@ -142,3 +142,5 @@ cython_debug/
 src/config*
 test/test_results/*
 data/benchmark_stimuli
+data/continuous/*
+data/binary/*
