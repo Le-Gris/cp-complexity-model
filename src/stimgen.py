@@ -6,7 +6,7 @@ import pandas as pd
 from numpy.random import default_rng
 import os, pickle
 from itertools import product
-
+from scipy.spatial import distance
 
 def macrofeatures(i: int, k: int, l: int, m: int, s: int, path: str, filename: str, code: str,
                   s_list: list = None, save=True) -> object:
@@ -279,18 +279,39 @@ def categories(macrofeaturesA: object, macrofeaturesB: object, noise: object, k:
 
     return catA, catB, info
 
-def custom_continuous_dataset():
+def gen_cont_cat(dim, mean, deviation, size):
+    rng = np.random.default_rng()
+    cat = []
+    for i, d in enumerate(dim):
+        cat.append(rng.normal(mean[i], dev[i], size))
+    cat = np.array(cat) 
+    # Eventually add modes
+    
+    return cat.T
 
-    # Varying between-category distance
-
-
-    # Varying between-category distance
- 
+def continuous_dataset(dim, meanA, devA, meanB, devB, size, path, filename, save):
+    
+    # Generate categories
+    catA = gen_cont_cat(dim, meanA, devB, size)
+    catB = gen_cont_cat(dim, meanB, devB, size)
+    
+    # Compute info
+    ## Within and between distances
+    withinA, withinB, between = compute_distance(catA, catB)
+    info=[withinA, withinB, between] 
     
     if save: 
         np.savez_compressed(os.path.join(path, filename), a=catA, b=catB, info=info)
     
     return catA, catB, info
+
+def compute_distance(catA, catB):
+
+    withinA = distance.cdist(catA, catA)
+    withinB = distance.cdist(catB, catB) 
+    between = distance.cdist(catA, catB)
+
+    return np.mean(withinA), np.mean(withinB), np.mean(between)
 
 def generate_stimspace(n):
     """

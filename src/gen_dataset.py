@@ -1,4 +1,4 @@
-from stimgen import macrofeatures, categories 
+from stimgen import macrofeatures, categories, continuous_dataset 
 import pickle
 import os
 import json
@@ -18,19 +18,21 @@ def get_configuration(fname):
         config = json.load(f)
     return config['dataset'], config['data_dir'], config['exp_name'], config['mode']
 
-def create_dirstruct(data_dir, exp_name):
+def create_dirstruct(data_dir, exp_name, mode):
 
     # Paths
     exp_dir = os.path.join(data_dir, exp_name)
-    path_mf = os.path.join(exp_dir,  'macrofeatures')
     path_cat = os.path.join(exp_dir, 'categories')
 
     # Verify directory existence
-    dir_exists(exp_dir, path_mf, path_cat)
+    dir_exists(exp_dir, path_cat)
+    if mode != 'cont':
+        path_mf = os.path.join(exp_dir,  'macrofeatures')
+        dir_exists(path_mf)
+    else:
+        path_mf = None
 
-    macro_fname = 'mf'
-
-    return path_mf, path_cat, macro_fname 
+    return path_mf, path_cat 
 
 
 def dir_exists(*args):
@@ -86,9 +88,13 @@ def generate_binary_custom(i, k, l, m, s, s_list, custom, path_mf, macro_fname, 
             categories(cur_set['M_A'], cur_set['M_B'], cur_set['N'], k=c[0], d=c[1], pd_i=c[2], pd=c[3], path=cur_dir,  filename='set_'+str(set_num), mf_name=set_name)
 
 
-def generate_continuous():
-    pass
-
+def generate_continuous(num_cats, meanA, meanB, devA, devB, dim, size, path_cat):
+    
+    # Loop through cat configurations
+    for c in range(num_cats): 
+        # Generate dataset
+        continuous_dataset(dim, meanA[c], devA[c], meanB[c], devB[c], size, path_cat, 'set_'+c, save=True)
+        
 def makedir_cat(parent_dir, k, d, pdi, pd):
     dirname = ''
     if k < 10:
@@ -117,16 +123,17 @@ def makedir_cat(parent_dir, k, d, pdi, pd):
 def main():
     
     config_fname = parse_args()
+
     config, data_dir, exp_name, mode = get_configuration(config_fname)
     
-    path_mf, path_cat, macro_fname = create_dirstruct(data_dir, exp_name)
-
+    path_mf, path_cat = create_dirstruct(data_dir, exp_name, mode)
+    
     if mode == 'binary':
-        generate_binary(**config, path_mf=path_mf, macro_fname=macro_fname, path_cat=path_cat)
+        generate_binary(**config, path_mf=path_mf, macro_fname='mf', path_cat=path_cat)
     elif mode == 'binary_custom':
-        generate_binary_custom(**config, path_mf=path_mf, macro_fname=macro_fname, path_cat=path_cat)
+        generate_binary_custom(**config, path_mf=path_mf, macro_fname='mf', path_cat=path_cat)
     else:
-        generate_continuous(**config)
+        generate_continuous(**config, path_cat=path_cat)
 
 
 if __name__ == '__main__':
