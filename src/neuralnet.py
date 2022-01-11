@@ -271,6 +271,11 @@ class Net(nn.Module):
             train_accuracy = train_accuracy[:best[1]+1]
             test_lost = test_loss[:best[1]+1]
             test_accuracy = test_accuracy[:best[1]+1]
+        
+        if torch.cuda.is_available():
+            for i in range(len(running_loss)):
+                running_loss[i] = running_loss[i].cpu()
+                test_loss[i] = test_loss[i].cpu()
 
         return running_loss, train_accuracy, test_loss, test_accuracy
 
