@@ -404,7 +404,7 @@ class Net(nn.Module):
             withinB = withinB.numpy()
         elif metric == 'cosine':
             # Need pairwise distance calculation
-            if device.type == 'cuda:0':
+            if torch.cuda.is_available():
                 in_rep = in_rep.cpu()
             between = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric=metric)
             withinA = distance.cdist(in_rep[:half_index], in_rep[:half_index], metric=metric)
