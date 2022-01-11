@@ -252,10 +252,10 @@ class Net(nn.Module):
                         best = [eval_loss, i]
                         torch.save({'state_dict': self.state_dict()}, './.best_model.pth')
                 elif monitor == 'acc':
-                    if test_accuracy >= threshold:
+                    if eval_acc >= threshold:
                         break
-                    elif acc > best[0]:
-                        best = [acc, i]
+                    elif eval_acc > best[0]:
+                        best = [eval_acc, i]
                         torch.save({'state_dict': self.state_dict()}, './.best_model.pth')
 
             # Scheduler

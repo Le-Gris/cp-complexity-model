@@ -135,7 +135,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     initial = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=True, metric=metric)
     np.savez_compressed(os.path.join(path, 'cp', 'cp_initial'), between=initial[0], withinA=initial[1], withinB=initial[2], inner=initial[3])
     if save_model:
-        torch.save({'state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'init_checkpoint'))
+        torch.save({'state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'init_checkpoint.pth'))
 
     # Freeze classifier
     neuralnet.freeze(neuralnet.classifier)
