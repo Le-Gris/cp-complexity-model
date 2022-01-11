@@ -34,34 +34,35 @@ def main():
     save_fname = parse_args()
 
     # Experiment 1 config
-    test2 = {}
+    test3 = {}
     
     # Data set
-    test2['dataset'] = {}
-    test2['sim'] = {}
-    test2['mode'] = 'binary_custom'
-    test2['model'] = 'conv'
-    test2['exp_name'] = 'test3'
-    test2['data_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'test', 'test_results', 'data', 'test3'))
-    test2['save_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'test', 'test_results', 'results'))
+    test3['dataset'] = {}
+    test3['sim'] = {}
+    test3['mode'] = 'binary_custom'
+    test3['model'] = 'conv'
+    test3['exp_name'] = 'test3'
+    test3['data_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'test', 'test_results', 'data', 'test3'))
+    test3['save_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'test', 'test_results', 'results'))
     
     ## Macrofeature parameters
-    test2['dataset']['i'] = 1
-    test2['dataset']['k'] = [8,11,12]
-    test2['dataset']['l'] = 32
-    test2['dataset']['m'] = 8
-    test2['dataset']['s'] = 0
-    test2['dataset']['s_list'] = None
+    test3['dataset']['size'] = 2048
+    test3['dataset']['i'] = 1
+    test3['dataset']['k'] = [8,11,12]
+    test3['dataset']['l'] = 32
+    test3['dataset']['m'] = 8
+    test3['dataset']['s'] = 0
+    test3['dataset']['s_list'] = None
 
     ## Category parameters
     ### In order, each element contains: k, d, pdi, pd
-    test2['dataset']['custom'] = [[8,24,6,0.0], [11,12,11,0.0], [11,14,6,0.0], [11,22,10,0.0], [11,24,10,0.0], [12,22,10,0.0], [12,26,8,0.0]]
+    test3['dataset']['custom'] = [[8,24,6,0.0], [11,12,11,0.0], [11,14,6,0.0], [11,22,10,0.0], [11,24,10,0.0], [12,22,10,0.0], [12,26,8,0.0]]
     
     # Simulation parameters
-    test2['sim']['layer_params'], test2['sim']['sim_params'] = sim_config() 
+    test3['sim']['layer_params'], test3['sim']['sim_params'] = sim_config() 
     
     with open(save_fname, 'w') as f:
-        json.dump(test2, f, indent=3)
+        json.dump(test3, f, indent=3)
 
 if __name__ == "__main__":
     main()
