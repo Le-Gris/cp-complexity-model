@@ -152,7 +152,8 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
 
     # Delete temporary model (this should be moved to training class once implemented)
     if training == 'early_stop':
-        os.remove('./.best_model.pth')
+        if os.path.exists('./.best_model.pth'):
+            os.remove('./.best_model.pth')
     
     # Plot AE training data
     plt.figure(1)
