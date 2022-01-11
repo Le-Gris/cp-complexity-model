@@ -128,7 +128,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     # Setup neural net
     neuralnet = NN.Net(encoder_config=encoder_config, decoder_config=decoder_config,
                        classifier_config=classifier_config)
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     neuralnet = neuralnet.to(device)
 
     # Compute initial inner representations
