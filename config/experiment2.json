@@ -73,14 +73,14 @@
       "sim_params": {
          "encoder_out_name": "lin1_encoder",
          "train_ratio": 0.8,
-         "AE_epochs": 35,
+         "AE_epochs": 50,
          "AE_batch_size": 8,
          "noise_factor": 0.1,
          "AE_lr": 0.0001,
          "AE_wd": 0.0001,
          "AE_thresh": 0.001,
          "AE_patience": 0.001,
-         "class_epochs": 35,
+         "class_epochs": 50,
          "class_batch_size": 8,
          "class_lr": 0.1,
          "class_wd": 0.01,
@@ -96,6 +96,6 @@
    "mode": "binary",
    "model": "conv",
    "exp_name": "exp2",
-   "data_dir": "/Users/solimlegris/Projects/cp-complexity-model/data/binary",
+   "data_dir": "/Users/solimlegris/Projects/cp-complexity-model/data/binary/exp2",
    "save_dir": "/Users/solimlegris/Projects/cp-complexity-model/results"
 }
