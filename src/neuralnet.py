@@ -371,10 +371,10 @@ class Net(nn.Module):
         # Set model to eval mode
         self.eval()
 
-        #device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
         # Send stimuli to device
-        #stimuli = stimuli.to(device)
+        stimuli = stimuli.to(device)
 
         # Get weight matrix
         #state_dict = self.encoder.state_dict()
@@ -404,6 +404,8 @@ class Net(nn.Module):
             withinB = withinB.numpy()
         elif metric == 'cosine':
             # Need pairwise distance calculation
+            if device.type == 'cuda:0':
+                in_rep = in_rep.cpu()
             between = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric=metric)
             withinA = distance.cdist(in_rep[:half_index], in_rep[:half_index], metric=metric)
             withinB = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric=metric)
