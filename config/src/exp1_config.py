@@ -41,7 +41,7 @@ def main():
     exp1['mode'] = 'binary'
     exp1['model'] = 'nn'
     exp1['exp_name'] = 'exp1'
-    exp1['data_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'data', 'binary'))
+    exp1['data_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'data', 'binary', 'exp1'))
     exp1['save_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'results'))
 
     ## Macrofeature parameters

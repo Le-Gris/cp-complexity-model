@@ -20,21 +20,11 @@ def sim_config():
                     'classifier_out': 2}
 
     # Set sim parameters
-    sim_params = OrderedDict({'encoder_out_name': 'lin1_encoder', 'train_ratio': 0.8, 'AE_epochs': 35,
+    sim_params = OrderedDict({'encoder_out_name': 'lin1_encoder', 'train_ratio': 0.8, 'AE_epochs': 50,
                               'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-5,'AE_wd': 10e-5,
-                              'AE_thresh': 0.001, 'AE_patience': 0.001, 'class_epochs': 35, 'class_batch_size': 8, 'class_lr': 10e-2,
+                              'AE_thresh': 0.001, 'AE_patience': 0.001, 'class_epochs': 50, 'class_batch_size': 8, 'class_lr': 10e-2,
                               'class_wd': 10e-3, 'class_monitor': 'acc', 'class_thresh': 85, 'training': 'early_stop',
                               'inplace_noise': True, 'save_model': True, 'metric':'cosine', 'verbose': False})    
-    
-    # Set layers parameters
-    #layer_params = {'encoder_in': 256, 'encoder_out': 128, 'decoder_in':  128, 'decoder_out': 256, 'classifier_in': 128, 
-    #                'classifier_out': 2}
-    
-    # Set sim parameters
-    #sim_params = OrderedDict({'encoder_out_name': 'lin1_encoder', 'train_ratio': 0.8, 'AE_epochs': 35, 
-    #                          'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-5,'AE_wd': 10e-5, 
-    #                          'AE_thresh': 0.001, 'AE_patience': 3, 'class_epochs': 35, 'class_batch_size': 8, 'class_lr': 10e-2, 
-    #                          'class_wd': 10e-3, 'training': 'early_stop', 'class_monitor': 'loss', 'class_thresh': 0.01,  'inplace_noise': True, 'save_model': True, 'verbose': False, 'metric':'cosine'})
     
     return layer_params, sim_params
 
@@ -52,7 +42,7 @@ def main():
     exp2['mode'] = 'binary'
     exp2['model'] = 'conv'
     exp2['exp_name'] = 'exp2'
-    exp2['data_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'data', 'binary'))
+    exp2['data_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'data', 'binary', 'exp2'))
     exp2['save_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'results'))
 
     ## Macrofeature parameters
