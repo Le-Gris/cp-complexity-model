@@ -371,10 +371,10 @@ class Net(nn.Module):
         # Set model to eval mode
         self.eval()
 
-        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        #device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
         # Send stimuli to device
-        stimuli = stimuli.to(device)
+        #stimuli = stimuli.to(device)
 
         # Get weight matrix
         #state_dict = self.encoder.state_dict()
