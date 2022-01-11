@@ -2,11 +2,10 @@ __author__ = 'Solim LeGris'
 
 # Imports
 import torch
-import torch.nn as nn
-from torch import utils
+from torch import nn, utils
 import numpy as np
 from scipy.spatial import distance
-import torch.nn.functional as F
+from torch.nn import functional as F
 import math
 
 class Net(nn.Module):

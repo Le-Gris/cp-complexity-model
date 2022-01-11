@@ -144,7 +144,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     optimizer = torch.optim.Adam(
         [{'params': neuralnet.encoder.parameters()}, {'params': neuralnet.decoder.parameters()}], lr=AE_lr,
         weight_decay=AE_wd)
-    scheduler = ReduceLROnPlateau(optimizer, patience=0)
+    scheduler = ReduceLROnPlateau(optimizer, patience=4)
     criterion = nn.MSELoss()
     running_loss_AE, test_loss_AE  = neuralnet.train_autoencoder(AE_epochs, stimuli, AE_batch_size, noise_factor,
                                                                 optimizer, criterion, scheduler, inplace_noise,
@@ -266,7 +266,7 @@ def main(**kwargs):
     sim_params['save_path'] = save_path
     
     # Dataset paths
-    path_cat = os.path.join(data_dir, exp_name, 'categories')
+    path_cat = os.path.join(data_dir, 'categories')
     category_paths = glob.glob(os.path.join(path_cat, '*'))
     datasets = []
     for path in category_paths:
