@@ -5,6 +5,7 @@ import torch
 from torch import nn, utils
 import numpy as np
 from scipy.spatial import distance
+from scipy.stats import ks_2samp
 from torch.nn import functional as F
 import math
 
@@ -44,20 +45,17 @@ class Net(nn.Module):
 
         return x
 
-    def train_autoencoder(self, num_epochs, stimuli, batch_size, noise_factor, optimizer, criterion, scheduler,
-                          inplace_noise=False, verbose=False, training='fixed', patience=3, thresh=0.001):
+    def train_autoencoder(self, num_epochs, optimizer, criterion, scheduler, train_loaders, test_loader, verbose=False, training='fixed', patience=3, thresh=0.001):
         """
         This function trains the autoencoder portion of the neural net model
 
-        :param num_epochs: number of epochs to train for or max number of epochs when in \'early_stop\' mode 
-        :param stimuli:
-        :param batch_size:
-        :param noise_factor:
         :param self: an instantiation of a neural net
+        :param num_epochs: number of epochs to train for or max number of epochs when in \'early_stop\' mode 
         :param optimizer: the optimizer to use to train the neural net
         :param criterion: the criterion to use for the loss
+        :param train_loaders: list of dataloaders (either 1 or num_epochs)
+        :param test_loader: dataloader for loss
         :param scheduler: learning rate scheduler
-        :param inplace_noise: Boolean for training with or without in place noise at each epoch
         :param verbose: Print training and testing information to screen
         :param training: \'fixed\' or \'early_stop\'
         :param patience: number of epochs to wait before stopping training
@@ -65,34 +63,25 @@ class Net(nn.Module):
         :return: three arrays containing the training loss per batch, the training loss per epoch
         and the evaluation loss
         """
-
+        
+        # Initial setup
         running_loss = []
         test_loss = []
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-        # Load test dataset
-        testloader = load_dataset_AE(stimuli=torch.clone(stimuli), batch_size=batch_size, noise_factor=0.0)
-        train_loaders = []
-        if inplace_noise:
-            for t in range(num_epochs):
-                train_loaders.append(load_dataset_AE(stimuli=torch.clone(stimuli), batch_size=batch_size,
-                                                     noise_factor=noise_factor))
-        else:
-            train_loaders.append(load_dataset_AE(stimuli=torch.clone(stimuli), batch_size=batch_size,
-                                                     noise_factor=noise_factor))
-       
+        
+        # Training mode setup
         if training == 'early_stop':
             # Keep track of best validation loss
             best_loss = math.inf
             patience_count = 0
 
-        # Training differs depending on mode
+        # Training 
         for epoch in range(num_epochs):
 
             cur_running_loss = 0.0
 
             # Load training dataset with new noise or same
-            if inplace_noise:
+            if len(train_loaders) > 1:
                 trainloader = train_loaders[epoch]
             else:
                 trainloader = train_loaders[0]
@@ -125,29 +114,25 @@ class Net(nn.Module):
             running_loss.append(cur_running_loss)
 
             # Eval loss
-            eval_loss = self.evaluate_AE(testloader, criterion)
+            eval_loss = self.evaluate_AE(test_loader, criterion)
             test_loss.append(eval_loss)
 
             if training == 'early_stop':
-                if eval_loss < best_loss and abs(best_loss - eval_loss)>thresh:
+                if eval_loss < best_loss:
+                    if abs(best_loss - eval_loss) < thresh:
+                        patience_count +=1
+                    else:
+                        patience_count = 0
                     best_loss = eval_loss
-                    patience = 0
-                    torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
+                    #torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
                 else:
                     patience_count += 1
 
-                    if patience_count == patience:
-                        # End training
-                        ## Load best model
-                        checkpoint = torch.load('./.best_model.pth')
-                        ## Load best model state dict 
-                        self.load_state_dict(checkpoint['model_state_dict'])
-                        ## Only return loss until best model epoch
-                        running_loss = running_loss[:len(running_loss) - patience] 
-                        eval_loss = eval_loss[:len(running_loss) - patience]
-                        
-                        return running_loss, test_loss            
-            
+                if patience_count == patience:
+                    # End training
+                    #TODO: load best model
+                    break
+
             if verbose:
                 print('Autoencoder, epoch {} --> Running Loss: {} \t Eval loss: {}'.format(epoch, cur_running_loss, eval_loss))
 
@@ -156,17 +141,13 @@ class Net(nn.Module):
 
         return running_loss, test_loss
 
-    def train_classifier(self, num_epochs, train_ratio, stimuli, labels, batch_size, optimizer, criterion, scheduler,
-                         training, monitor, threshold, verbose=False):
+    def train_classifier(self, num_epochs, optimizer, criterion, scheduler, train_loader, test_loader, training, monitor, threshold, patience=3, verbose=False):
         """
         Train the classifier portion of the neural net.
 
         :param num_epochs: number of epochs to train the classifier for, max_value when in 'early_stop mode'
-        :param train_ratio: percentage of dataset used for training
         :param optimizer: the optimizer to use to train the neural net
         :param criterion: the criterion to use for the loss
-        :param train_ratio: portion of the dataset to be used for training versus testing
-        :param stimuli: dataset
         :param labels: labels for dataset
         :param batch_size: size of batch for training
         :param optimizer: the optimizer to use to train the neural net
@@ -188,14 +169,11 @@ class Net(nn.Module):
         # Determine device to use
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        # Load datasets
-        trainloader, testloader = load_dataset_class(train_ratio=train_ratio, stimuli=stimuli, labels=labels,
-                                                           batch_size=batch_size)
-
         # Monitor best model in case threshold is never reached
         if training == 'early_stop':
             if monitor == 'loss':
                 best = [math.inf, -1]
+                patience_count = 0
             elif monitor == 'acc':
                 best = [0, -1]
 
@@ -204,7 +182,7 @@ class Net(nn.Module):
             # Save running loss
             cur_loss = 0.0
 
-            for i, (stimuli, labels) in enumerate(trainloader):
+            for i, (stimuli, labels) in enumerate(train_loader):
 
                 # Pass training data to device
                 stimuli = stimuli.to(device)
@@ -228,15 +206,15 @@ class Net(nn.Module):
                 cur_loss += loss.item()
 
             # Running loss
-            cur_loss /= len(trainloader)
+            cur_loss /= len(train_loader)
             running_loss.append(cur_loss)
 
             # Train accuracy
-            _, train_acc = self.evaluate_classifier(trainloader, criterion)
+            _, train_acc = self.evaluate_classifier(train_loader, criterion)
             train_accuracy.append(train_acc)
 
             # Eval loss and accuracy
-            eval_loss, eval_acc = self.evaluate_classifier(testloader, criterion)
+            eval_loss, eval_acc = self.evaluate_classifier(test_loader, criterion)
             test_loss.append(eval_loss)
             test_accuracy.append(eval_acc)
 
@@ -246,11 +224,18 @@ class Net(nn.Module):
             # Monitor 
             if training == 'early_stop':
                 if monitor == 'loss':
-                    if eval_loss <= threshold:
-                        break
-                    elif eval_loss < best[0]:
+                    if eval_loss < best[0]: 
+                        if abs(eval_loss - best[0]) < threshold:
+                            patience_count += 1
+                        else:
+                            patience_count = 0
                         best = [eval_loss, i]
-                        torch.save({'state_dict': self.state_dict()}, './.best_model.pth')
+                        #torch.save({'state_dict': self.state_dict()}, './.best_model.pth')
+                    else:
+                        patience_count += 1
+                    if patience_count == patience:
+                        #TODO: load best model
+                        break
                 elif monitor == 'acc':
                     if eval_acc >= threshold:
                         break
@@ -261,6 +246,7 @@ class Net(nn.Module):
             # Scheduler
             scheduler.step(eval_loss)
         
+        """
         if i == num_epochs and i != best[1]:
             # Load best model
             best_model = torch.load('./.best_model.pth')
@@ -271,7 +257,8 @@ class Net(nn.Module):
             train_accuracy = train_accuracy[:best[1]+1]
             test_lost = test_loss[:best[1]+1]
             test_accuracy = test_accuracy[:best[1]+1]
-        
+       """
+        # This should be unnecessary
         if torch.cuda.is_available():
             for i in range(len(running_loss)):
                 running_loss[i] = running_loss[i].cpu()
@@ -437,34 +424,4 @@ class Net(nn.Module):
 
         return return_arr
 
-
-def load_dataset_AE(stimuli, batch_size, noise_factor=0.05):
-
-    # Training set for autoencoder
-    if noise_factor > 0.0:
-        corrupt_stimuli = add_noise(tensors=torch.clone(stimuli), noise_factor=noise_factor)
-        dataset = utils.data.TensorDataset(corrupt_stimuli, stimuli)
-    else:
-        dataset = utils.data.TensorDataset(stimuli, stimuli)
-    train_loader = utils.data.DataLoader(dataset=dataset, batch_size=batch_size)
-
-    return train_loader
-
-def load_dataset_class(train_ratio, stimuli, labels, batch_size):
-
-    # Training and test sets for classifier
-    dataset = utils.data.TensorDataset(stimuli, labels)
-    train_size = int(train_ratio * len(dataset))
-    test_size = len(dataset) - train_size
-    train_dataset, test_dataset = utils.data.random_split(dataset, [train_size, test_size])
-    train_loader = utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size)
-    test_loader = utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size)
-
-    return train_loader, test_loader
-
-def add_noise(tensors, noise_factor=0.05):
-    noise = torch.randn(tensors.size())
-    corrupt_tensors = tensors + (noise_factor*noise)
-
-    return corrupt_tensors
 

@@ -4,7 +4,7 @@ __author__ = 'Solim LeGris'
 import os
 from . import neuralnet as NN
 import torch
-import torch.nn as nn
+from torch import nn, utils
 import numpy as np
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import matplotlib.pyplot as plt
@@ -110,6 +110,41 @@ def get_labels(categoryA_size, categorynA_size):
               range(categoryA_size + categorynA_size)]
     return labels
 
+def load_datasets(stimuli, labels, AE_batch_size, AE_epochs, class_batch_size, inplace_noise=False, train_ratio=0.7, noise_factor=0.05):
+
+    # Get training and test set sizes
+    train_size = int(train_ratio * len(stimuli))
+    test_size = len(stimuli) - train_size
+
+    # Split
+    train, test = utils.data.random_split(stimuli, [train_size, test_size])
+    train_idx = train.indices
+    test_idx = test.indices
+
+    # Get dataloaders classifier
+    test_loader_cl = utils.data.DataLoader(dataset=utils.data.TensorDataset(stimuli[test_idx], labels[test_idx]), batch_size=class_batch_size)
+    train_loader_cl = utils.data.DataLoader(dataset=utils.data.TensorDataset(stimuli[train_idx], labels[train_idx]), batch_size=class_batch_size)
+
+    # Get dataloaders AE
+    train_loaders_AE = []
+    if inplace_noise:
+        for e in range(AE_epochs):
+            corrupt_stimuli = add_noise(tensors=torch.clone(stimuli[train_idx]), noise_factor=noise_factor)
+            dataset = utils.data.TensorDataset(corrupt_stimuli, stimuli[train_idx])
+            train_loader = utils.data.DataLoader(dataset=dataset, batch_size=AE_batch_size )
+            train_loaders_AE.append(train_loader)
+    else:
+        train_loaders_AE.append(utils.data.TensorDataset(stimuli[train_idx], stimuli[train_idx]))
+    test_loader_AE = utils.data.DataLoader(dataset=utils.data.TensorDataset(stimuli[test_idx], stimuli[test_idx]), batch_size=AE_batch_size)
+
+    return train_loaders_AE, test_loader_AE, train_loader_cl, test_loader_cl, train_idx, test_idx
+
+def add_noise(tensors, noise_factor=0.05):
+    noise = torch.randn(tensors.size())
+    corrupt_tensors = tensors + (noise_factor*noise)
+
+    return corrupt_tensors
+
 # Function that runs a simulation
 def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config, encoder_out_name,
             stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, AE_patience, AE_thresh, class_epochs,
@@ -130,8 +165,15 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
                        classifier_config=classifier_config)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     neuralnet = neuralnet.to(device)
+    
+    # Get dataloaders
+    train_loaders_AE, test_loader_AE, train_loader_cl, test_loader_cl, train_idx, test_idx = load_datasets(stimuli=stimuli, labels=labels, AE_batch_size=AE_batch_size, 
+                                                                                                           AE_epochs=AE_epochs, class_batch_size=class_batch_size, 
+                                                                                                           inplace_noise=inplace_noise, train_ratio=train_ratio, 
+                                                                                                           noise_factor=noise_factor)
 
     # Compute initial inner representations
+    #TODO: change compute CP inputs, add categoricality computations using Kolmogorov-Smirnov
     initial = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=True, metric=metric)
     np.savez_compressed(os.path.join(path, 'cp', 'cp_initial'), between=initial[0], withinA=initial[1], withinB=initial[2], inner=initial[3])
     if save_model:
@@ -146,9 +188,9 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         weight_decay=AE_wd)
     scheduler = ReduceLROnPlateau(optimizer, patience=4)
     criterion = nn.MSELoss()
-    running_loss_AE, test_loss_AE  = neuralnet.train_autoencoder(AE_epochs, stimuli, AE_batch_size, noise_factor,
-                                                                optimizer, criterion, scheduler, inplace_noise,
-                                                                verbose=verbose, training=training, patience=AE_patience, thresh=AE_thresh)
+    running_loss_AE, test_loss_AE  = neuralnet.train_autoencoder(num_epochs=AE_epochs, optimizer=optimizer, criterion=criterion, scheduler=scheduler,
+                                                                 train_loaders=train_loaders_AE, test_loader=test_loader_AE, training=training, 
+                                                                 patience=AE_patience, thresh=AE_thresh, verbose=verbose)
 
     # Delete temporary model (this should be moved to training class once implemented)
     if training == 'early_stop':
@@ -189,11 +231,9 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
                                 lr=class_lr, weight_decay=class_wd)
     scheduler = ReduceLROnPlateau(optimizer, patience=0)
     criterion = nn.MSELoss()
-    running_loss, train_accuracy, test_loss, test_accuracy = neuralnet.train_classifier(class_epochs, train_ratio,
-                                                                                        stimuli, labels,
-                                                                                        class_batch_size, optimizer,
-                                                                                        criterion, scheduler, training, 
-                                                                                        monitor=class_monitor, threshold=class_thresh, verbose=verbose)
+    running_loss, train_accuracy, test_loss, test_accuracy = neuralnet.train_classifier(num_epochs=class_epochs, optimizer=optimizer, criterion=criterion, 
+                                                                                        scheduler=scheduler, train_loader=train_loader_cl, test_loader=test_loader_cl,
+                                                                                        training=training, monitor=class_monitor, threshold=class_thresh, verbose=verbose)
     
     # Delete temporary model
     if training == 'early_stop':
