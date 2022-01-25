@@ -5,7 +5,6 @@ import torch
 from torch import nn, utils
 import numpy as np
 from scipy.spatial import distance
-from scipy.stats import ks_2samp
 from torch.nn import functional as F
 import math
 
@@ -72,7 +71,7 @@ class Net(nn.Module):
         # Training mode setup
         if training == 'early_stop':
             # Keep track of best validation loss
-            best_loss = math.inf
+            best_loss = [math.inf, -1]
             patience_count = 0
 
         # Training 
@@ -118,19 +117,19 @@ class Net(nn.Module):
             test_loss.append(eval_loss)
 
             if training == 'early_stop':
-                if eval_loss < best_loss:
-                    if abs(best_loss - eval_loss) < thresh:
+                if eval_loss < best_loss[0]:
+                    if best_loss[0] - eval_loss < thresh:
                         patience_count +=1
                     else:
                         patience_count = 0
-                    best_loss = eval_loss
-                    #torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
+                    best_loss = [eval_loss, epoch]
+                    torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
                 else:
-                    patience_count += 1
+                    if test_loss[epoch] - eval_loss < thresh:
+                        patience_count += 1
 
                 if patience_count == patience:
                     # End training
-                    #TODO: load best model
                     break
 
             if verbose:
@@ -138,10 +137,19 @@ class Net(nn.Module):
 
             # Scheduler
             scheduler.step(eval_loss)
+        
+        if eval_loss != best_loss[0]:
+            # Load best model
+            best_model = torch.load('./.best_model.pth')
+            self.load_state_dict(best_model['model_state_dict'])
 
+            # Return data up until best model
+            running_loss = running_loss[:best_loss[1]+1] 
+            test_loss = test_loss[:best_loss[1]+1]
+        
         return running_loss, test_loss
 
-    def train_classifier(self, num_epochs, optimizer, criterion, scheduler, train_loader, test_loader, training, monitor, threshold, patience=3, verbose=False):
+    def train_classifier(self, num_epochs, optimizer, criterion, scheduler, train_loader, test_loader, training, monitor, threshold, patience=4, verbose=False):
         """
         Train the classifier portion of the neural net.
 
@@ -224,40 +232,40 @@ class Net(nn.Module):
             # Monitor 
             if training == 'early_stop':
                 if monitor == 'loss':
-                    if eval_loss < best[0]: 
-                        if abs(eval_loss - best[0]) < threshold:
+                    if eval_loss <= best[0]: 
+                        if eval_loss - best[0] < threshold:
                             patience_count += 1
                         else:
                             patience_count = 0
-                        best = [eval_loss, i]
-                        #torch.save({'state_dict': self.state_dict()}, './.best_model.pth')
+                        best = [eval_loss, epoch]
+                        torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
                     else:
-                        patience_count += 1
+                        if test_loss[epoch] - eval_loss < threshold:
+                            patience_count += 1
                     if patience_count == patience:
-                        #TODO: load best model
                         break
+                #TODO: fix this to work with best model load and make it an early stop
                 elif monitor == 'acc':
                     if eval_acc >= threshold:
                         break
                     elif eval_acc > best[0]:
-                        best = [eval_acc, i]
-                        torch.save({'state_dict': self.state_dict()}, './.best_model.pth')
+                        best = [eval_acc, epoch]
+                        torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
 
             # Scheduler
             scheduler.step(eval_loss)
         
-        """
-        if i == num_epochs and i != best[1]:
+        if eval_loss != best[0] or eval_acc != best[0]:
             # Load best model
             best_model = torch.load('./.best_model.pth')
-            self.load_state_dict(best_model['state_dict'])
+            self.load_state_dict(best_model['model_state_dict'])
             
             # Return data up until best model
             running_loss = running_loss[:best[1]+1]
             train_accuracy = train_accuracy[:best[1]+1]
-            test_lost = test_loss[:best[1]+1]
+            test_loss = test_loss[:best[1]+1]
             test_accuracy = test_accuracy[:best[1]+1]
-       """
+        
         # This should be unnecessary
         if torch.cuda.is_available():
             for i in range(len(running_loss)):
@@ -413,6 +421,8 @@ class Net(nn.Module):
         # Compute mean by removing the diagonal values for within since we don't care about it
         withinA = withinA.sum()/(withinA.size - withinA.shape[0])
         withinB = withinB.sum()/(withinB.size - withinB.shape[0])
+        between = np.mean(between) 
+        
         return_arr.append(between)
         return_arr.append(withinA)
         return_arr.append(withinB)

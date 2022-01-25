@@ -2,7 +2,7 @@ __author__ = 'Solim LeGris'
 
 # Imports
 import os
-from . import neuralnet as NN
+import neuralnet as NN
 import torch
 from torch import nn, utils
 import numpy as np
@@ -13,6 +13,8 @@ import glob
 import time
 import argparse
 import json
+from scipy.spatial.distance import cdist
+from scipy.stats import ks_2samp
 plt.ioff()
 
 # Get simulation configuration filename
@@ -136,14 +138,47 @@ def load_datasets(stimuli, labels, AE_batch_size, AE_epochs, class_batch_size, i
     else:
         train_loaders_AE.append(utils.data.TensorDataset(stimuli[train_idx], stimuli[train_idx]))
     test_loader_AE = utils.data.DataLoader(dataset=utils.data.TensorDataset(stimuli[test_idx], stimuli[test_idx]), batch_size=AE_batch_size)
+    
+    # Retrieve catA and catB indices for categoricality test
+    idx_A = []
+    idx_B = []
+    for idx in test_idx:
+        if labels[idx][0] == 1:
+            idx_A.append(idx)
+        else:
+            idx_B.append(idx)
 
-    return train_loaders_AE, test_loader_AE, train_loader_cl, test_loader_cl, train_idx, test_idx
+    return train_loaders_AE, test_loader_AE, train_loader_cl, test_loader_cl, np.array(idx_A), np.array(idx_B)
 
 def add_noise(tensors, noise_factor=0.05):
     noise = torch.randn(tensors.size())
     corrupt_tensors = tensors + (noise_factor*noise)
 
     return corrupt_tensors
+
+def categoricality(neuralnet, device, catA, catB):
+    # Neural net stuff setup
+    neuralnet.eval()
+    catA.to(device)
+    catB.to(device)
+    
+    # Get neural representations
+    repA = neuralnet.forward(catA)
+    repB = neuralnet.forward(catB)
+    repA = repA.detach()
+    repB = repB.detach()
+
+    # Compute cosine similarity of neural representations
+    withinA = cdist(repA, repA, metric='cosine').flatten()
+    withinB = cdist(repA, repB, metric='cosine').flatten()
+    between = cdist(repA, repB, metric='cosine').flatten()
+
+    within = np.concatenate((withinA, withinB))
+
+    # Compute categoricality
+    ksstat, _ = ks_2samp(between, within) 
+    
+    return [ksstat, withinA, withinB, between]
 
 # Function that runs a simulation
 def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config, encoder_out_name,
@@ -157,9 +192,9 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         os.makedirs(path)
         os.mkdir(os.path.join(path, 'plots'))
         os.mkdir(os.path.join(path, 'cp'))
+        os.mkdir(os.path.join(path, 'categoricality'))
         if save_model:
             os.mkdir(os.path.join(path, 'model_checkpoints'))
-
     # Setup neural net
     neuralnet = NN.Net(encoder_config=encoder_config, decoder_config=decoder_config,
                        classifier_config=classifier_config)
@@ -167,15 +202,15 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     neuralnet = neuralnet.to(device)
     
     # Get dataloaders
-    train_loaders_AE, test_loader_AE, train_loader_cl, test_loader_cl, train_idx, test_idx = load_datasets(stimuli=stimuli, labels=labels, AE_batch_size=AE_batch_size, 
+    train_loaders_AE, test_loader_AE, train_loader_cl, test_loader_cl, idx_A, idx_B = load_datasets(stimuli=stimuli, labels=labels, AE_batch_size=AE_batch_size, 
                                                                                                            AE_epochs=AE_epochs, class_batch_size=class_batch_size, 
                                                                                                            inplace_noise=inplace_noise, train_ratio=train_ratio, 
                                                                                                            noise_factor=noise_factor)
-
+    
     # Compute initial inner representations
-    #TODO: change compute CP inputs, add categoricality computations using Kolmogorov-Smirnov
-    initial = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=True, metric=metric)
+    initial = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=False, metric=metric)
     np.savez_compressed(os.path.join(path, 'cp', 'cp_initial'), between=initial[0], withinA=initial[1], withinB=initial[2], inner=initial[3])
+    init_categoricality  = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B])
     if save_model:
         torch.save({'state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'init_checkpoint.pth'))
 
@@ -218,8 +253,9 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     neuralnet.freeze(neuralnet.decoder)
 
     # Compute CP and save
-    before = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=True, metric=metric)
+    before = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=False, metric=metric)
     np.savez_compressed(os.path.join(path, 'cp', 'cp_before'), between=before[0], withinA=before[1], withinB=before[2], inner=before[3])
+    before_categoricality = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B])
     if save_model:
         torch.save({'model_state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'AE_checkpoint.pth')) 
     
@@ -274,8 +310,9 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.close(6)
 
     # Compute CP and save
-    after = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=True, metric=metric)
+    after = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=False, metric=metric)
     np.savez_compressed(os.path.join(path, 'cp','cp_after'), between=after[0], withinA=after[1], withinB=after[2], inner=after[3])
+    after_categoricality = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B])
     if save_model:
         torch.save({'model_state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'class_checkpoint.pth')) 
 
@@ -285,9 +322,18 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
 
     code = []
     code.append(cat_code)
-
+    
+    cat_score = [init_categoricality[0], before_categoricality[0], after_categoricality[0]]
+    neural_dist_wA = [init_categoricality[1], before_categoricality[1], after_categoricality[1]]
+    neural_dist_wB = [init_categoricality[2], before_categoricality[2], after_categoricality[2]]
+    neural_dist_bet = [init_categoricality[3], before_categoricality[3], after_categoricality[3]]
+    test_idx = [idx_A, idx_B]
+     
     # Save data
-    np.savez_compressed(os.path.join(path, 'sim_' + str(sim_num)), ae=ae_data, classifier=class_data, code=code)
+    ## Categoricality data
+    np.savez_compressed(os.path.join(path, 'categoricality', 'scores'), cat_score=cat_score, nwA=neural_dist_wA, nwB=neural_dist_wB, nwBt=neural_dist_bet)
+    ## Neural net/sim data
+    np.savez_compressed(os.path.join(path, 'sim_' + str(sim_num)), ae=ae_data, classifier=class_data, code=code, test_idx=test_idx)
 
 def main(**kwargs):
     

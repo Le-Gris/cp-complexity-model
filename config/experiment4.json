@@ -1,0 +1,49 @@
+{
+   "dataset": {
+      "size": 10000,
+      "i": null,
+      "k": null,
+      "l": null,
+      "m": null,
+      "s": null,
+      "s_list": null,
+      "custom": null
+   },
+   "sim": {
+      "layer_params": {
+         "encoder_in": 2,
+         "encoder_out": 20,
+         "decoder_in": 20,
+         "decoder_out": 2,
+         "classifier_in": 20,
+         "classifier_out": 2
+      },
+      "sim_params": {
+         "encoder_out_name": "lin1_encoder",
+         "train_ratio": 0.7,
+         "AE_epochs": 50,
+         "AE_batch_size": 10,
+         "noise_factor": 0.1,
+         "AE_lr": 0.01,
+         "AE_wd": 0.0001,
+         "AE_thresh": 0.001,
+         "AE_patience": 5,
+         "class_epochs": 50,
+         "class_batch_size": 10,
+         "class_lr": 0.1,
+         "class_wd": 0.01,
+         "class_monitor": "loss",
+         "class_thresh": 0.001,
+         "training": "early_stop",
+         "inplace_noise": true,
+         "save_model": true,
+         "metric": "cosine",
+         "verbose": false
+      }
+   },
+   "mode": "cont",
+   "model": "nn",
+   "exp_name": "exp4",
+   "data_dir": "/Users/solimlegris/Projects/cp-complexity-model/data/continuous/exp4",
+   "save_dir": "/Users/solimlegris/Projects/cp-complexity-model/results"
+}
