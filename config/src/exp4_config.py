@@ -43,6 +43,7 @@ def main():
     exp4['model'] = 'nn'
     exp4['exp_name'] = 'exp4'
     exp4['data_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'data', 'continuous', 'exp4'))
+    exp4['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'data', 'continuous', 'exp4', 'categories'))
     exp4['save_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'results'))
     
     ## Macrofeature parameters

@@ -3,7 +3,6 @@ import pickle
 import os
 import json
 import argparse
-#import sys
 
 def parse_args():
 

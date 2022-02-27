@@ -55,18 +55,20 @@ def get_configuration(fname):
     
     with open(fname, 'r') as f:
         config = json.load(f)
-    return config['sim'], config['exp_name'], config['data_dir'], config['save_dir'], config['mode'], config['model'], config['dataset']['size']
+    return config['sim'], config['exp_name'], config['dataset_dir'], config['save_dir'], config['mode'], config['model'], config['dataset']['size']
 
 # Function to get stimuli from hard drive
 def get_stimuli(path):
     
     categories = np.load(path)
     catA = categories['a']
+    numA = catA.shape[0]
     catB = categories['b']
+    numB = catB.shape[0]
     stimuli = torch.as_tensor(np.concatenate((catA, catB)), dtype=torch.float32)
     stimuli = nn.functional.normalize(stimuli)
 
-    return stimuli
+    return stimuli, numA, numB
 
 def create_dirstruct(save_dir, exp_name):
 
@@ -88,7 +90,6 @@ def dir_exists(*args):
 
 def get_dataset_info(path, mode='binary'):
     
-    
     split_path = os.path.split(path)
     
     if mode == 'binary' or mode == 'binary_custom':
@@ -100,16 +101,21 @@ def get_dataset_info(path, mode='binary'):
         catcode = os.path.split(catcode)[1]
     
         catcode = catcode + '-' + setnum
+    
     elif mode == 'cont':
         catcode = split_path[1].split('_')[1]
+    
+    elif mode == 'benchmark':
+        catcode = split_path[1].split('-')
+        catcode = catcode[0] + catcode[1] + catcode[2]
     else: 
-        raise Exception('Incorrect mode. Use mode=binary or mode=binary_custom or mode=cont')
+        raise Exception('Incorrect mode. Use binary, binary_custom, cont or benchmark')
     return catcode
 
-def get_labels(categoryA_size, categorynA_size):
+def get_labels(sizeA, sizeB):
 
-    labels = [np.array([1, 0], dtype=float) if x < categoryA_size else np.array([0, 1], dtype=float) for x in
-              range(categoryA_size + categorynA_size)]
+    labels = [np.array([1, 0], dtype=float) if x < sizeA else np.array([0, 1], dtype=float) for x in
+              range(sizeA + sizeB)]
     return labels
 
 def load_datasets(stimuli, labels, AE_batch_size, AE_epochs, class_batch_size, inplace_noise=False, train_ratio=0.7, noise_factor=0.05):
@@ -117,6 +123,21 @@ def load_datasets(stimuli, labels, AE_batch_size, AE_epochs, class_batch_size, i
     # Get training and test set sizes
     train_size = int(train_ratio * len(stimuli))
     test_size = len(stimuli) - train_size
+    
+    # Verify that no batch has size 1
+    rem_train = train_size%class_batch_size
+    rem_test = train_size%class_batch_size
+    
+    if rem_train == 1:
+        if rem_test == 0 or rem_test == 2:
+            train_size += 2
+            rem_test -= 2 
+        else:
+            train_size += 1
+            test_size -= 1    
+    elif rem_test == 1:
+        train_size += 1 
+        test_size -= 1
 
     # Split
     train, test = utils.data.random_split(stimuli, [train_size, test_size])
@@ -257,7 +278,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     np.savez_compressed(os.path.join(path, 'cp', 'cp_before'), between=before[0], withinA=before[1], withinB=before[2], inner=before[3])
     before_categoricality = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B])
     if save_model:
-        torch.save({'model_state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'AE_checkpoint.pth')) 
+        torch.save({'state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'AE_checkpoint.pth')) 
     
     # Thaw classifier
     neuralnet.unfreeze(neuralnet.classifier)
@@ -314,7 +335,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     np.savez_compressed(os.path.join(path, 'cp','cp_after'), between=after[0], withinA=after[1], withinB=after[2], inner=after[3])
     after_categoricality = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B])
     if save_model:
-        torch.save({'model_state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'class_checkpoint.pth')) 
+        torch.save({'state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'class_checkpoint.pth')) 
 
     # Stack autoencoder and classifier training and testing data
     ae_data = np.stack([running_loss_AE, test_loss_AE])
@@ -354,7 +375,7 @@ def main(**kwargs):
     sim_params['save_path'] = save_path
     
     # Dataset paths
-    path_cat = os.path.join(data_dir, 'categories')
+    path_cat = os.path.join(data_dir)
     category_paths = glob.glob(os.path.join(path_cat, '*'))
     datasets = []
     for path in category_paths:
@@ -371,11 +392,23 @@ def main(**kwargs):
         # Timer
         s = time.time()
         
-        # Get labels
-        labels = torch.as_tensor(get_labels(size, size), dtype=torch.float32)
+
+
+
         
+        print(p)
+
+
+
+
+
+
+
         # Get stimuli
-        stimuli = get_stimuli(p)
+        stimuli, numA, numB = get_stimuli(p)
+        
+        # Get labels
+        labels = torch.as_tensor(get_labels(numA, numB), dtype=torch.float32)
 
         # Neural net layer config
         encoder_config, decoder_config, classifier_config = get_model_arch(model, layer_params)

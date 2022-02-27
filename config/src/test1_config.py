@@ -43,6 +43,7 @@ def main():
     test1['mdoel'] = 'nn'
     test1['exp_name'] = 'test1'
     test1['data_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'test', 'test_results', 'data'))
+    test1['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'test', 'test_results', 'data', 'categories'))
     test1['save_dir'] = osp.abspath(osp.join(Path(__file__).parent,'..', '..', 'test', 'test_results', 'results'))
     
     ## Macrofeature parameters

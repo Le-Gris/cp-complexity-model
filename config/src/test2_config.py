@@ -42,6 +42,7 @@ def main():
     test2['model'] = 'conv'
     test2['exp_name'] = 'test1'
     test2['data_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'test', 'test_results', 'data'))
+    test2['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'test', 'test_results', 'data', 'categories'))
     test2['save_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'test' 'test_results', 'results'))
     
     ## Macrofeature parameters

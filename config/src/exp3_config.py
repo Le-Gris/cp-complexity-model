@@ -43,6 +43,7 @@ def main():
     exp3['model'] = 'conv'
     exp3['exp_name'] = 'exp3'
     exp3['data_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'data', 'continuous'))
+    exp3['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'data', 'continuous', 'categories'))
     exp3['save_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'results'))
 
     ## Category parameters
