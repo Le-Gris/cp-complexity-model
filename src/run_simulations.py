@@ -238,7 +238,7 @@ def get_dim_weighting(neuralnet, layer_idx=0):
     return weighting
 
 # Function that runs a simulation
-def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config, encoder_out_name,
+def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config,
             stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, AE_patience, AE_thresh, class_epochs,
             class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, rep_type='act',
             save_model=True, metric='euclid', verbose=False):
@@ -266,7 +266,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
                                                                                                            noise_factor=noise_factor)
     
     # Compute initial inner representations
-    initial = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=False, metric=metric, rep_type=rep_type)
+    initial = neuralnet.compute_cp(stimuli=stimuli, inner=False, metric=metric, rep_type=rep_type)
     np.savez_compressed(os.path.join(path, 'cp', 'cp_initial'), between=initial[0], withinA=initial[1], withinB=initial[2], inner=initial[3])
     init_categoricality  = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B], rep_type)
     if save_model:
@@ -311,7 +311,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     neuralnet.freeze(neuralnet.decoder)
 
     # Compute CP and save
-    before = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=False, metric=metric, rep_type=rep_type)
+    before = neuralnet.compute_cp(stimuli=stimuli, inner=False, metric=metric, rep_type=rep_type)
     np.savez_compressed(os.path.join(path, 'cp', 'cp_before'), between=before[0], withinA=before[1], withinB=before[2], inner=before[3])
     before_categoricality = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B], rep_type)
     before_weighting = get_dim_weighting(neuralnet, layer_idx=0)
@@ -369,7 +369,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.close(6)
 
     # Compute CP and save
-    after = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=False, metric=metric, rep_type=rep_type)
+    after = neuralnet.compute_cp(stimuli=stimuli, inner=False, metric=metric, rep_type=rep_type)
     np.savez_compressed(os.path.join(path, 'cp','cp_after'), between=after[0], withinA=after[1], withinB=after[2], inner=after[3])
     after_categoricality = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B], rep_type)
     after_weighting = get_dim_weighting(neuralnet, layer_idx=0)

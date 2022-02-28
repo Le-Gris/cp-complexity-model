@@ -366,7 +366,7 @@ class Net(nn.Module):
             p.requires_grad = True
 
     @torch.no_grad()
-    def compute_cp(self, stimuli, layer_name, inner=False, metric='euclid', rep_type='act'):
+    def compute_cp(self, stimuli, inner=False, metric='euclid', rep_type='act'):
 
         # Set model to eval mode
         self.eval()

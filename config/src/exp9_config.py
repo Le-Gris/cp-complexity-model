@@ -1,4 +1,7 @@
-# Config for benchmark stim N8. 
+"""
+Configuration file for simulations with benchmark stimuli. Constraints on autoencoder (dimensionality reduction). 
+Saving weightings from inner layer. Inner representation CP measurements are non-linear. Activation is sigmoidal all the way through.
+"""
 import json
 import argparse
 from collections import OrderedDict
@@ -24,7 +27,7 @@ def sim_config():
                               'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-3,'AE_wd': 10e-5, 
                               'AE_thresh': 0.001, 'AE_patience': 5, 'class_epochs': 50, 'class_batch_size': 8, 'class_lr': 10e-2, 
                               'class_wd': 10e-3, 'class_monitor': 'loss', 'class_thresh': 0.001, 'training': 'early_stop', 
-                              'inplace_noise': True, 'save_model': True, 'metric':'cosine', 'verbose': False})
+                              'inplace_noise': True, 'rep_type': 'lin', 'save_model': True, 'metric':'cosine', 'verbose': False})
     
     return layer_params, sim_params
 
@@ -40,8 +43,8 @@ def main():
     exp5['dataset'] = {}
     exp5['sim'] = {}
     exp5['mode'] = 'benchmark'
-    exp5['model'] = 'nn'
-    exp5['exp_name'] = 'exp7'
+    exp5['model'] = 'nn-sig'
+    exp5['exp_name'] = 'exp9'
     exp5['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'data', 'benchmark_stimuli', 'N8'))
     exp5['save_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'results'))
     
