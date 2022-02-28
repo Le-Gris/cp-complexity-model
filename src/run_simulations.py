@@ -29,22 +29,33 @@ def get_model_arch(model, layer_params):
 
     if model == 'nn':
         encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']),
-                                      'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out']), 'sig1_encoder': nn.ReLU()})
+                                      'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out']), 'relu1_encoder': nn.ReLU()})
 
         decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
-                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out']), 'sig2_decoder': nn.ReLU()})
+                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out']), 'relu2_decoder': nn.ReLU()})
 
         classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
-                                         'sig1_classifier': nn.Sigmoid()})
+                                         'sig_classifier': nn.Sigmoid()})
     elif model == 'conv':
         encoder_config = OrderedDict({'unflatten': nn.Unflatten(1, (1, layer_params['input_dim'])),
                                       'lin1_encoder': nn.Conv1d(layer_params['encoder_in_channels'], layer_params['encoder_out_channels'], kernel_size=layer_params['encoder_kernel'], stride=layer_params['stride']),
-                                        'flatten': nn.Flatten(), 'norm1_encoder': nn.BatchNorm1d(layer_params['decoder_in']), 'sig1_encoder': nn.ReLU()})
+                                        'flatten': nn.Flatten(), 'norm1_encoder': nn.BatchNorm1d(layer_params['decoder_in']), 'relu_encoder': nn.ReLU()})
 
         decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
-                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out']), 'sig2_decoder': nn.ReLU()})
+                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out']), 'relu_decoder': nn.ReLU()})
 
-        classifier_config = OrderedDict({'linear1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']), 'sig1_classifier': nn.Sigmoid()})
+        classifier_config = OrderedDict({'linear1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']), 'sig_classifier': nn.Sigmoid()})
+    
+    elif model == 'nn-sig':
+        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']),
+                                      'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out']), 'sig_encoder': nn.Sigmoid()})
+
+        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
+                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out']), 'sig_decoder': nn.Sigmoid()})
+
+        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
+                                         'sig_classifier': nn.Sigmoid()})    
+
     else:
         raise Exception('Incorrect model type: use \'conv\' or \'nn\'')
 
@@ -177,15 +188,33 @@ def add_noise(tensors, noise_factor=0.05):
 
     return corrupt_tensors
 
-def categoricality(neuralnet, device, catA, catB):
+def categoricality(neuralnet, device, catA, catB, rep_type='act'):
     # Neural net stuff setup
     neuralnet.eval()
     catA.to(device)
     catB.to(device)
     
     # Get neural representations
-    repA = neuralnet.forward(catA)
-    repB = neuralnet.forward(catB)
+    if rep_type == 'act':
+        repA = neuralnet.forward(catA)
+        repB = neuralnet.forward(catB)
+    elif rep_type == 'lin':
+        # Get top layer index
+        top_layer_idx = len(neuralnet.encoder) - 1
+        
+        # Initialize reps
+        repA = catA
+        repB = catB
+
+        # Get inner reps from last layer
+        for k, layer in enumerate(neuralnet.encoder.children()):
+            if k == top_layer_idx:
+                break
+            
+            # Layer forward
+            repA = layer(repA)
+            repB = layer(repB)
+
     repA = repA.detach()
     repB = repB.detach()
 
@@ -198,13 +227,21 @@ def categoricality(neuralnet, device, catA, catB):
 
     # Compute categoricality
     ksstat, _ = ks_2samp(between, within) 
-    
+
     return [ksstat, withinA, withinB, between]
+
+def get_dim_weighting(neuralnet, layer_idx=0):
+    
+    W = neuralnet.encoder[layer_idx].weight
+    weighting = W.clone().detach().sum(dim=0)
+
+    return weighting
 
 # Function that runs a simulation
 def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config, encoder_out_name,
             stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, AE_patience, AE_thresh, class_epochs,
-            class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, save_model=True, metric='euclid', verbose=False):
+            class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, rep_type='act',
+            save_model=True, metric='euclid', verbose=False):
 
     path = os.path.join(save_path, 'sim_' + str(sim_num))
 
@@ -229,9 +266,9 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
                                                                                                            noise_factor=noise_factor)
     
     # Compute initial inner representations
-    initial = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=False, metric=metric)
+    initial = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=False, metric=metric, rep_type=rep_type)
     np.savez_compressed(os.path.join(path, 'cp', 'cp_initial'), between=initial[0], withinA=initial[1], withinB=initial[2], inner=initial[3])
-    init_categoricality  = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B])
+    init_categoricality  = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B], rep_type)
     if save_model:
         torch.save({'state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'init_checkpoint.pth'))
 
@@ -274,9 +311,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     neuralnet.freeze(neuralnet.decoder)
 
     # Compute CP and save
-    before = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=False, metric=metric)
+    before = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=False, metric=metric, rep_type=rep_type)
     np.savez_compressed(os.path.join(path, 'cp', 'cp_before'), between=before[0], withinA=before[1], withinB=before[2], inner=before[3])
-    before_categoricality = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B])
+    before_categoricality = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B], rep_type)
+    before_weighting = get_dim_weighting(neuralnet, layer_idx=0)
     if save_model:
         torch.save({'state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'AE_checkpoint.pth')) 
     
@@ -331,9 +369,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.close(6)
 
     # Compute CP and save
-    after = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=False, metric=metric)
+    after = neuralnet.compute_cp(stimuli=stimuli, layer_name=encoder_out_name, inner=False, metric=metric, rep_type=rep_type)
     np.savez_compressed(os.path.join(path, 'cp','cp_after'), between=after[0], withinA=after[1], withinB=after[2], inner=after[3])
-    after_categoricality = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B])
+    after_categoricality = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B], rep_type)
+    after_weighting = get_dim_weighting(neuralnet, layer_idx=0)
     if save_model:
         torch.save({'state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'class_checkpoint.pth')) 
 
@@ -354,7 +393,8 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     ## Categoricality data
     np.savez_compressed(os.path.join(path, 'categoricality', 'scores'), cat_score=cat_score, nwA=neural_dist_wA, nwB=neural_dist_wB, nwBt=neural_dist_bet)
     ## Neural net/sim data
-    np.savez_compressed(os.path.join(path, 'sim_' + str(sim_num)), ae=ae_data, classifier=class_data, code=code, test_idx=test_idx)
+    np.savez_compressed(os.path.join(path, 'sim_' + str(sim_num)), ae=ae_data, classifier=class_data, code=code, test_idx=test_idx, before_weighting=before_weighting,
+                        after_weighting=after_weighting)
 
 def main(**kwargs):
     
@@ -392,18 +432,8 @@ def main(**kwargs):
         # Timer
         s = time.time()
         
-
-
-
+        print(f'Simulation {j}: {p}')
         
-        print(p)
-
-
-
-
-
-
-
         # Get stimuli
         stimuli, numA, numB = get_stimuli(p)
         

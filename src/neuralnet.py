@@ -366,7 +366,7 @@ class Net(nn.Module):
             p.requires_grad = True
 
     @torch.no_grad()
-    def compute_cp(self, stimuli, layer_name, inner=False, metric='euclid'):
+    def compute_cp(self, stimuli, layer_name, inner=False, metric='euclid', rep_type='act'):
 
         # Set model to eval mode
         self.eval()
@@ -386,7 +386,21 @@ class Net(nn.Module):
         
         # This is measured following non-linear transformation
         # Can implement it such as iteration until last element of Sequential which is activation 
-        in_rep = self.forward(stimuli)
+        
+        if rep_type == 'act':
+            in_rep = self.forward(stimuli)
+        elif rep_type == 'lin':
+            # Index of last layer
+            top_layer_idx = len(self.encoder)-1
+             
+            # Iterate through all layers exceot last one
+            in_rep = stimuli.clone().detach()
+            for k, layer in enumerate(self.encoder.children()):
+                if k == top_layer_idx:
+                    break
+
+                in_rep = layer(in_rep)
+
 
         # Get index that separates categories
         half_index = int(in_rep.shape[0]/2)
