@@ -235,7 +235,7 @@ def categoricality(neuralnet, device, catA, catB, rep_type='act'):
 def get_dim_weighting(neuralnet, layer_idx=0):
     
     W = neuralnet.encoder[layer_idx].weight
-    weighting = W.clone().detach().sum(dim=0)
+    weighting = W.clone().detach().norm(dim=0)
 
     return weighting
 
