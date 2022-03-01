@@ -2,7 +2,9 @@ __author__ = 'Solim LeGris'
 
 # Imports
 import os
-import neuralnet as NN
+import sys
+sys.path.append(os.path.abspath(os.path.join('..')))
+import src.neuralnet as NN
 import torch
 from torch import nn, utils
 import numpy as np
@@ -425,14 +427,14 @@ def main(**kwargs):
     # Setup timer
     timer = []
     total = len(datasets)
-    print('Total number of simulations left to run: {}'.format(total))
+    print('Total number of simulations to run: {}'.format(total))
 
     for j, p in enumerate(datasets):
         
         # Timer
         s = time.time()
         
-        print(f'Simulation {j}: {p}')
+        print(f'\nSimulation {j}: {p}')
         
         # Get stimuli
         stimuli, numA, numB = get_stimuli(p)
@@ -471,7 +473,7 @@ def main(**kwargs):
                 print('Average run time: {}'.format(mean))
 
         time_left = mean*total/3600
-        print('Number of simulations to run: {} \t Estimated time left: {}h'.format(total, time_left))
+        print(f'Estimated time left: {time_left}h')
 
 if __name__ == "__main__":
     main()
