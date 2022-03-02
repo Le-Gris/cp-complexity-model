@@ -3,7 +3,8 @@ __author__ = 'Solim LeGris'
 # Imports
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join('..')))
+from pathlib import Path
+sys.path.append(Path(__file__).parent)
 import src.neuralnet as NN
 import torch
 from torch import nn, utils
@@ -59,7 +60,7 @@ def get_model_arch(model, layer_params):
                                          'sig_classifier': nn.Sigmoid()})    
 
     else:
-        raise Exception('Incorrect model type: use \'conv\' or \'nn\'')
+        raise Exception('Incorrect model type: use \'conv\' or \'nn\' or \'nn-sig\'')
 
     return encoder_config, decoder_config, classifier_config
 
@@ -193,8 +194,8 @@ def add_noise(tensors, noise_factor=0.05):
 def categoricality(neuralnet, device, catA, catB, rep_type='act'):
     # Neural net stuff setup
     neuralnet.eval()
-    catA.to(device)
-    catB.to(device)
+    catA = catA.to(device)
+    catB = catB.to(device)
     
     # Get neural representations
     if rep_type == 'act':
@@ -217,8 +218,8 @@ def categoricality(neuralnet, device, catA, catB, rep_type='act'):
             repA = layer(repA)
             repB = layer(repB)
 
-    repA = repA.detach()
-    repB = repB.detach()
+    repA = repA.detach().cpu()
+    repB = repB.detach().cpu()
 
     # Compute cosine similarity of neural representations
     withinA = cdist(repA, repA, metric='cosine').flatten()
@@ -235,7 +236,7 @@ def categoricality(neuralnet, device, catA, catB, rep_type='act'):
 def get_dim_weighting(neuralnet, layer_idx=0):
     
     W = neuralnet.encoder[layer_idx].weight
-    weighting = W.clone().detach().norm(dim=0)
+    weighting = W.clone().detach().norm(dim=0).cpu()
 
     return weighting
 
@@ -417,13 +418,14 @@ def main(**kwargs):
     sim_params['save_path'] = save_path
     
     # Dataset paths
-    path_cat = os.path.join(data_dir)
-    category_paths = glob.glob(os.path.join(path_cat, '*'))
+    #path_cat = os.path.join(data_dir)
+    print(data_dir)
+    category_paths = glob.glob(os.path.join(data_dir, '*'))
     datasets = []
     for path in category_paths:
         d = glob.glob(os.path.join(path, '*'))
         datasets += d
-    
+
     # Setup timer
     timer = []
     total = len(datasets)

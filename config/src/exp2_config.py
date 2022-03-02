@@ -18,12 +18,12 @@ def sim_config():
     # Set layers parameters
     layer_params = {'input_dim': 256, 'encoder_in_channels': 1, 'encoder_out_channels': 1, 'encoder_kernel': 8, 'stride': 2, 'decoder_in':  125, 'decoder_out': 256, 'classifier_in': 125,
                     'classifier_out': 2}
-
+    
     # Set sim parameters
-    sim_params = OrderedDict({'train_ratio': 0.8, 'AE_epochs': 50,
-                              'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-5,'AE_wd': 10e-5,
+    sim_params = OrderedDict({'train_ratio': 0.7, 'AE_epochs': 50,
+                              'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-4,'AE_wd': 10e-5,
                               'AE_thresh': 0.001, 'AE_patience': 0.001, 'class_epochs': 50, 'class_batch_size': 8, 'class_lr': 10e-2,
-                              'class_wd': 10e-3, 'class_monitor': 'acc', 'class_thresh': 85, 'training': 'early_stop',
+                              'class_wd': 10e-3, 'class_monitor': 'loss', 'class_thresh': 85, 'training': 'early_stop',
                               'inplace_noise': True, 'save_model': True, 'metric':'cosine', 'verbose': False})    
     
     return layer_params, sim_params

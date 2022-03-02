@@ -211,7 +211,7 @@ class Net(nn.Module):
                 optimizer.step()
 
                 # Save and add loss of current pass
-                cur_loss += loss.item()
+                cur_loss += loss.detach().data.cpu().numpy()
 
             # Running loss
             cur_loss /= len(train_loader)
@@ -267,10 +267,10 @@ class Net(nn.Module):
             test_accuracy = test_accuracy[:best[1]+1]
         
         # This should be unnecessary
-        if torch.cuda.is_available():
-            for i in range(len(running_loss)):
-                running_loss[i] = running_loss[i].cpu()
-                test_loss[i] = test_loss[i].cpu()
+        # if torch.cuda.is_available():
+        #     for i in range(len(running_loss)):
+        #         running_loss[i] = running_loss[i].cpu()
+        #         test_loss[i] = test_loss[i].cpu()
 
         return running_loss, train_accuracy, test_loss, test_accuracy
 
@@ -376,17 +376,6 @@ class Net(nn.Module):
         # Send stimuli to device
         stimuli = stimuli.to(device)
 
-        # Get weight matrix
-        #state_dict = self.encoder.state_dict()
-        #W = torch.clone(state_dict[layer_name+'.weight']).to(device)
-        #W = W/torch.norm(W, dim=None)
-
-        # Compute inner representations for A and B
-        #in_rep = torch.matmul(W, stimuli.T).T
-        
-        # This is measured following non-linear transformation
-        # Can implement it such as iteration until last element of Sequential which is activation 
-        
         if rep_type == 'act':
             in_rep = self.forward(stimuli)
         elif rep_type == 'lin':

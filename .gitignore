@@ -142,7 +142,7 @@ dmypy.json
 cython_debug/
 
 .DS_Store
-config/*.json
+./config/*
 test/test_results/*
 data/benchmark_stimuli
 data/continuous/*

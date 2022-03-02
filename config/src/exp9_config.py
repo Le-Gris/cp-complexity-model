@@ -31,10 +31,10 @@ def sim_config():
     
     return layer_params, sim_params
 
-def main():
+def main(**kwargs):
     
     # Get filename to write to
-    save_fname = parse_args()
+    save_fname = kwargs['save_fname']
 
     # Experiment 1 config
     exp5 = {}
@@ -68,4 +68,5 @@ def main():
         json.dump(exp5, f, indent=3)
 
 if __name__ == "__main__":
-    main()
+    save_fname = parse_args()
+    main(save_fname=save_fname)
