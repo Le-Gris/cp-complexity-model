@@ -41,9 +41,9 @@ def main():
     exp1['mode'] = 'binary'
     exp1['model'] = 'nn'
     exp1['exp_name'] = 'exp1'
-    exp1['data_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'data', 'binary', 'exp1'))
-    exp1['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'data', 'binary', 'exp1', 'categories'))
-    exp1['save_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'results'))
+    exp1['data_dir'] = osp.abspath(osp.join(Path(__file__).parent,'..', 'data', 'binary', 'exp1'))
+    exp1['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', 'data', 'binary', 'exp1', 'categories'))
+    exp1['save_dir'] = osp.abspath(osp.join(Path(__file__).parent,'..', 'results'))
 
     ## Macrofeature parameters
     exp1['dataset']['i'] = 16

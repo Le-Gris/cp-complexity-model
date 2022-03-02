@@ -42,9 +42,9 @@ def main():
     exp2light['mode'] = 'binary'
     exp2light['model'] = 'conv'
     exp2light['exp_name'] = 'exp2_light'
-    exp2light['data_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'data', 'binary', 'exp2_light'))
-    exp2light['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'data', 'binary', 'exp2_light', 'categories'))
-    exp2light['save_dir'] = osp.abspath(osp.join(Path(__file__).parents[2], 'results'))
+    exp2light['data_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', 'data', 'binary', 'exp2_light'))
+    exp2light['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', 'data', 'binary', 'exp2_light', 'categories'))
+    exp2light['save_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', 'results'))
 
     ## Macrofeature parameters
     exp2light['dataset']['i'] = 16

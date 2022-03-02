@@ -142,8 +142,9 @@ dmypy.json
 cython_debug/
 
 .DS_Store
-./config/*
+config/*.json
 test/test_results/*
+data/benchmark_stimuli.zip
 data/benchmark_stimuli
 data/continuous/*
 data/binary/*
