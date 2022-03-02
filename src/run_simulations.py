@@ -18,62 +18,30 @@ import argparse
 import json
 from scipy.spatial.distance import cdist
 from scipy.stats import ks_2samp
+from src import model_arch
 plt.ioff()
 
-# Get simulation configuration filename
 def parse_args():
-
+    """
+    Function that gets the simulation configuration filename from the arguments
+    """
     parser = argparse.ArgumentParser(description='Run simulation experiments')
     parser.add_argument('-c', help='<config.json>', required=True)
     args = parser.parse_args()
     return args.c
 
-def get_model_arch(model, layer_params):
-
-    if model == 'nn':
-        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']),
-                                      'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out']), 'relu1_encoder': nn.ReLU()})
-
-        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
-                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out']), 'relu2_decoder': nn.ReLU()})
-
-        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
-                                         'sig_classifier': nn.Sigmoid()})
-    elif model == 'conv':
-        encoder_config = OrderedDict({'unflatten': nn.Unflatten(1, (1, layer_params['input_dim'])),
-                                      'lin1_encoder': nn.Conv1d(layer_params['encoder_in_channels'], layer_params['encoder_out_channels'], kernel_size=layer_params['encoder_kernel'], stride=layer_params['stride']),
-                                        'flatten': nn.Flatten(), 'norm1_encoder': nn.BatchNorm1d(layer_params['decoder_in']), 'relu_encoder': nn.ReLU()})
-
-        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
-                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out']), 'relu_decoder': nn.ReLU()})
-
-        classifier_config = OrderedDict({'linear1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']), 'sig_classifier': nn.Sigmoid()})
-    
-    elif model == 'nn-sig':
-        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']),
-                                      'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out']), 'sig_encoder': nn.Sigmoid()})
-
-        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
-                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out']), 'sig_decoder': nn.Sigmoid()})
-
-        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
-                                         'sig_classifier': nn.Sigmoid()})    
-
-    else:
-        raise Exception('Incorrect model type: use \'conv\' or \'nn\' or \'nn-sig\'')
-
-    return encoder_config, decoder_config, classifier_config
-
-# Get json configuration as dict
 def get_configuration(fname):
-    
+    """
+    Get json configuration as dictionary
+    """
     with open(fname, 'r') as f:
         config = json.load(f)
     return config['sim'], config['exp_name'], config['dataset_dir'], config['save_dir'], config['mode'], config['model'], config['dataset']['size']
 
-# Function to get stimuli from hard drive
 def get_stimuli(path):
-    
+    """
+    Function to load stimuli from hard drive
+    """
     categories = np.load(path)
     catA = categories['a']
     numA = catA.shape[0]
@@ -85,7 +53,9 @@ def get_stimuli(path):
     return stimuli, numA, numB
 
 def create_dirstruct(save_dir, exp_name):
-
+    """
+    Create directory structure and verify existence to save data
+    """
     # Path
     exp_save_dir = os.path.join(save_dir, exp_name)
 
@@ -96,14 +66,18 @@ def create_dirstruct(save_dir, exp_name):
 
 
 def dir_exists(*args):
-
+    """
+    Verify directory existence
+    """
     for path in args:
         if not os.path.exists(path):
             os.makedirs(path)
 
 
 def get_dataset_info(path, mode='binary'):
-    
+    """
+    Messy but gets the dataset info to save and associate to simulation later
+    """
     split_path = os.path.split(path)
     
     if mode == 'binary' or mode == 'binary_custom':
@@ -127,13 +101,19 @@ def get_dataset_info(path, mode='binary'):
     return catcode
 
 def get_labels(sizeA, sizeB):
-
-    labels = [np.array([1, 0], dtype=float) if x < sizeA else np.array([0, 1], dtype=float) for x in
-              range(sizeA + sizeB)]
+    """
+    Creates binary label tensors
+    """
+    labels_A = torch.tensor([1, 0], dtype=torch.float).repeat(sizeA, 1)
+    labels_B = torch.tensor([0, 1], dtype=torch.float).repeat(sizeB, 1)
+    labels = torch.cat((labelsA, labelsB))
+    
     return labels
 
 def load_datasets(stimuli, labels, AE_batch_size, AE_epochs, class_batch_size, inplace_noise=False, train_ratio=0.7, noise_factor=0.05):
-
+    """
+    Loads the datasets into dataloaders for training and testing
+    """
     # Get training and test set sizes
     train_size = int(train_ratio * len(stimuli))
     test_size = len(stimuli) - train_size
@@ -186,12 +166,18 @@ def load_datasets(stimuli, labels, AE_batch_size, AE_epochs, class_batch_size, i
     return train_loaders_AE, test_loader_AE, train_loader_cl, test_loader_cl, np.array(idx_A), np.array(idx_B)
 
 def add_noise(tensors, noise_factor=0.05):
+    """
+    Adds in place uniform noise to inputs 
+    """
     noise = torch.randn(tensors.size())
     corrupt_tensors = tensors + (noise_factor*noise)
 
     return corrupt_tensors
 
 def categoricality(neuralnet, device, catA, catB, rep_type='act'):
+    """
+    Computes categoricality index of neural distances distributions
+    """
     # Neural net stuff setup
     neuralnet.eval()
     catA = catA.to(device)
@@ -234,18 +220,24 @@ def categoricality(neuralnet, device, catA, catB, rep_type='act'):
     return [ksstat, withinA, withinB, between]
 
 def get_dim_weighting(neuralnet, layer_idx=0):
-    
+    """
+    Gets the weighting of input dimensions
+    """
+    #TODO Would be nice to instead have see if net learnt features as coded (e.g. do neurons on some layer respond maximally to a certain pattern of inputs)
     W = neuralnet.encoder[layer_idx].weight
     weighting = W.clone().detach().norm(dim=0).cpu()
 
     return weighting
 
-# Function that runs a simulation
 def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config,
             stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, AE_patience, AE_thresh, class_epochs,
             class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, rep_type='act',
             save_model=True, metric='euclid', verbose=False):
+    """
+    Function that runs a simulation
+    """
 
+    # Save path
     path = os.path.join(save_path, 'sim_' + str(sim_num))
 
     # Setup directory structure
@@ -256,6 +248,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         os.mkdir(os.path.join(path, 'categoricality'))
         if save_model:
             os.mkdir(os.path.join(path, 'model_checkpoints'))
+    
     # Setup neural net
     neuralnet = NN.Net(encoder_config=encoder_config, decoder_config=decoder_config,
                        classifier_config=classifier_config)
@@ -418,8 +411,6 @@ def main(**kwargs):
     sim_params['save_path'] = save_path
     
     # Dataset paths
-    #path_cat = os.path.join(data_dir)
-    print(data_dir)
     category_paths = glob.glob(os.path.join(data_dir, '*'))
     datasets = []
     for path in category_paths:
@@ -445,7 +436,7 @@ def main(**kwargs):
         labels = torch.as_tensor(get_labels(numA, numB), dtype=torch.float32)
 
         # Neural net layer config
-        encoder_config, decoder_config, classifier_config = get_model_arch(model, layer_params)
+        encoder_config, decoder_config, classifier_config = model_arch.get_model_arch(arch_name=model, layer_params=layer_params)
                          
         sim_params['encoder_config'] = encoder_config
         sim_params['decoder_config'] = decoder_config
