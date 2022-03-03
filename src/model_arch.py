@@ -1,13 +1,13 @@
 from torch import nn
 import argparse
-
+from collections import OrderedDict
 
 
 
 def get_model_arch(arch_name, layer_params):
 
     # Init config
-        if arch_name == 'nn':
+    if arch_name == 'nn':
         encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']),
                                       'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out']), 'relu1_encoder': nn.ReLU()})
 

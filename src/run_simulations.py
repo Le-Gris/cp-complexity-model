@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 sys.path.append(Path(__file__).parent)
-import src.neuralnet as NN
+from src import neuralnet as NN
 import torch
 from torch import nn, utils
 import numpy as np
@@ -106,7 +106,7 @@ def get_labels(sizeA, sizeB):
     """
     labels_A = torch.tensor([1, 0], dtype=torch.float).repeat(sizeA, 1)
     labels_B = torch.tensor([0, 1], dtype=torch.float).repeat(sizeB, 1)
-    labels = torch.cat((labelsA, labelsB))
+    labels = torch.cat((labels_A, labels_B))
     
     return labels
 
@@ -219,7 +219,7 @@ def categoricality(neuralnet, device, catA, catB, rep_type='act'):
 
     return [ksstat, withinA, withinB, between]
 
-def get_dim_weighting(neuralnet, layer_idx=0):
+def get_dim_weighting(neuralnet, layer_idx=0, model='nn'):
     """
     Gets the weighting of input dimensions
     """
@@ -231,7 +231,7 @@ def get_dim_weighting(neuralnet, layer_idx=0):
 
 def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config,
             stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, AE_patience, AE_thresh, class_epochs,
-            class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, rep_type='act',
+            class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, model='nn', layer_idx=0, rep_type='act',
             save_model=True, metric='euclid', verbose=False):
     """
     Function that runs a simulation
@@ -310,7 +310,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     before = neuralnet.compute_cp(stimuli=stimuli, inner=False, metric=metric, rep_type=rep_type)
     np.savez_compressed(os.path.join(path, 'cp', 'cp_before'), between=before[0], withinA=before[1], withinB=before[2], inner=before[3])
     before_categoricality = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B], rep_type)
-    before_weighting = get_dim_weighting(neuralnet, layer_idx=0)
+    before_weighting = get_dim_weighting(neuralnet, layer_idx, model)
     if save_model:
         torch.save({'state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'AE_checkpoint.pth')) 
     
@@ -368,7 +368,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     after = neuralnet.compute_cp(stimuli=stimuli, inner=False, metric=metric, rep_type=rep_type)
     np.savez_compressed(os.path.join(path, 'cp','cp_after'), between=after[0], withinA=after[1], withinB=after[2], inner=after[3])
     after_categoricality = categoricality(neuralnet, device, stimuli[idx_A], stimuli[idx_B], rep_type)
-    after_weighting = get_dim_weighting(neuralnet, layer_idx=0)
+    after_weighting = get_dim_weighting(neuralnet, layer_idx)
     if save_model:
         torch.save({'state_dict': neuralnet.state_dict()}, os.path.join(path, 'model_checkpoints', 'class_checkpoint.pth')) 
 
@@ -459,11 +459,11 @@ def main(**kwargs):
 
         if j < 5:
             mean = np.mean(timer)
-            print('Average run time: {}'.format(mean))
+            print('Average run time: {}h'.format(mean/3600))
         else:
             if j % 25 == 0:
                 mean = np.mean(timer)
-                print('Average run time: {}'.format(mean))
+                print('Average run time: {}h'.format(mean/3600))
 
         time_left = mean*total/3600
         print(f'Estimated time left: {time_left}h')
