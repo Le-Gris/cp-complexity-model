@@ -402,7 +402,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
 def main(**kwargs):
     
     # Load configuration and other parameters
-    config_name = kwargs['config_name']
+    config_fname = kwargs['config_fname']
     config, exp_name, data_dir, save_dir, mode, model, size, repeat = get_configuration(config_fname)
     
     # Config
@@ -477,5 +477,5 @@ def main(**kwargs):
         print(f'Estimated time left: {time_left}h')
 
 if __name__ == "__main__":
-    config_name = parse_args()
-    main(config_name=config_name)
+    config_fname = parse_args()
+    main(config_fname=config_fname)
