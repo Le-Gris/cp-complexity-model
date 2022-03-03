@@ -36,7 +36,14 @@ def get_configuration(fname):
     """
     with open(fname, 'r') as f:
         config = json.load(f)
-    return config['sim'], config['exp_name'], config['dataset_dir'], config['save_dir'], config['mode'], config['model'], config['dataset']['size']
+    
+    # Repeat each experiment r times 
+    if 'repeat' in config:
+        repeat = config['repeat']
+    else:
+        repeat = 0
+
+    return config['sim'], config['exp_name'], config['dataset_dir'], config['save_dir'], config['mode'], config['model'], config['dataset']['size'], repeat
 
 def get_stimuli(path):
     """
@@ -395,11 +402,8 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
 def main(**kwargs):
     
     # Load configuration and other parameters
-    if 'config_fname' in kwargs:
-        config_fname = kwargs['config_fname']
-    else:
-        config_fname = parse_args()
-    config, exp_name, data_dir, save_dir, mode, model, size = get_configuration(config_fname)
+    config_name = kwargs['config_name']
+    config, exp_name, data_dir, save_dir, mode, model, size, repeat = get_configuration(config_fname)
     
     # Config
     sim_params = config['sim_params']
@@ -416,7 +420,11 @@ def main(**kwargs):
     for path in category_paths:
         d = glob.glob(os.path.join(path, '*'))
         datasets += d
-
+    if repeat > 0:
+        _datasets = datasets.copy()
+        for r in range(repeat): _datasets += datasets
+        datasets = _datasets
+    
     # Setup timer
     timer = []
     total = len(datasets)
@@ -469,4 +477,5 @@ def main(**kwargs):
         print(f'Estimated time left: {time_left}h')
 
 if __name__ == "__main__":
-    main()
+    config_name = parse_args()
+    main(config_name=config_name)
