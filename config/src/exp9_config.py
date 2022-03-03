@@ -1,6 +1,6 @@
 """
 Configuration file for simulations with benchmark stimuli. Constraints on autoencoder (dimensionality reduction). 
-Saving weightings from inner layer. Inner representation CP measurements are non-linear. Activation is sigmoidal all the way through.
+Saving weightings from inner layer. Inner representation CP measurements are linear. Activation is sigmoidal all the way through.
 """
 import json
 import argparse

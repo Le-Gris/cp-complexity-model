@@ -19,7 +19,7 @@ def parse_args():
 def sim_config():
     
     # Set layers parameters
-    layer_params = {'encoder_in': 8, 'encoder_out': 2, 'decoder_in': 2, 'decoder_out': 8, 'classifier_in': 2,
+    layer_params = {'encoder_in': 8, 'encoder_out': 7, 'decoder_in': 7, 'decoder_out': 8, 'classifier_in': 7,
                     'classifier_out': 2}
 
     # Set sim parameters
@@ -37,38 +37,38 @@ def main(**kwargs):
     save_fname = kwargs['save_fname']
 
     # Experiment 1 config
-    exp10 = {}
+    exp14 = {}
     
     # Data set
-    exp10['dataset'] = {}
-    exp10['sim'] = {}
-    exp10['mode'] = 'benchmark'
-    exp10['model'] = 'nn-sig'
-    exp10['exp_name'] = 'exp10'
-    exp10['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'data', 'benchmark_stimuli', 'N8-kp-eq'))
-    exp10['save_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'results'))
+    exp14['dataset'] = {}
+    exp14['sim'] = {}
+    exp14['mode'] = 'benchmark'
+    exp14['model'] = 'nn-sig'
+    exp14['exp_name'] = 'exp14'
+    exp14['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'data', 'benchmark_stimuli', 'N8-kp-eq'))
+    exp14['save_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'results'))
     
     ## Macrofeature parameters
-    exp10['dataset']['size'] = 1000
-    exp10['dataset']['i'] = None
-    exp10['dataset']['k'] = None
-    exp10['dataset']['l'] = None
-    exp10['dataset']['m'] = None
-    exp10['dataset']['s'] = None
-    exp10['dataset']['s_list'] = None
+    exp14['dataset']['size'] = 1000
+    exp14['dataset']['i'] = None
+    exp14['dataset']['k'] = None
+    exp14['dataset']['l'] = None
+    exp14['dataset']['m'] = None
+    exp14['dataset']['s'] = None
+    exp14['dataset']['s_list'] = None
 
     ## Category parameters
     ### In order, each element contains: k, d, pdi, pd
-    exp10['dataset']['custom'] = None 
+    exp14['dataset']['custom'] = None 
     
     # Simulation parameters
-    exp10['sim']['layer_params'], exp10['sim']['sim_params'] = sim_config() 
+    exp14['sim']['layer_params'], exp14['sim']['sim_params'] = sim_config() 
     
     # Repetition parameter
-    exp10['repeat'] = 3
+    exp14['repeat'] = 3
 
     with open(save_fname, 'w') as f:
-        json.dump(exp10, f, indent=3)
+        json.dump(exp14, f, indent=3)
 
 if __name__ == "__main__":
     save_fname = parse_args()
