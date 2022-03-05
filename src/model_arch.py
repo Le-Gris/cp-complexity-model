@@ -35,6 +35,54 @@ def get_model_arch(arch_name, layer_params):
 
         classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
                                          'sig_classifier': nn.Sigmoid()})
+    
+    elif arch_name == 'lin-encoder-nn-sig':
+        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']),
+                                      'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out'])})
+
+        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
+                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out'])})
+
+        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
+                                         'sig_classifier': nn.Sigmoid()})
+    
+    elif arch_name == 'lin-encoder-nn-relu':
+        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']),
+                                      'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out'])})
+
+        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
+                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out'])})
+
+        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
+                                         'sig_classifier': nn.ReLU()})
+
+    elif arch_name == 'full-linear':
+        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']),
+                                      'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out'])})
+
+        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
+                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out'])})
+
+        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out'])})
+    
+    elif arch_name == 'lin-decoder-sig':
+        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']),
+                                        'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out']), 'sig_encoder': nn.Sigmoid()})
+
+        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
+                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out'])})
+
+        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
+                                        'sig_classifier': nn.Sigmoid()})
+    elif arch_name == 'lin-decoder-relu':
+        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']),
+                                    'norm1_encoder': nn.BatchNorm1d(layer_params['encoder_out']), 'relu_encoder': nn.ReLU()})
+
+        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']),
+                                      'norm1_decoder': nn.BatchNorm1d(layer_params['decoder_out'])})
+
+        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
+                                        'relu_classifer': nn.ReLU()})
 
     else:
         raise Exception('Incorrect model type: use \'conv\' or \'nn\' or \'nn-sig\'')
