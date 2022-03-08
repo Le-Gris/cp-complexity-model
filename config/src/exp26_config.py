@@ -3,10 +3,8 @@ Configuration file for simulations with benchmark stimuli.
 Autoencoder does dimensionality expansion. 
 Saving weightings from inner layer. 
 Inner representation CP measurements are non-linear. 
-No activation on autoencoder (linear).
-Sigmoid classifier
+Activation is sigmoidal all the way through.
 """
-
 import json
 import argparse
 from collections import OrderedDict
@@ -42,38 +40,35 @@ def main(**kwargs):
     save_fname = kwargs['save_fname']
 
     # Experiment 1 config
-    exp21 = {}
+    exp26 = {}
     
     # Data set
-    exp21['dataset'] = {}
-    exp21['sim'] = {}
-    exp21['mode'] = 'benchmark'
-    exp21['model'] = 'lin-encoder-nn-sig'
-    exp21['exp_name'] = 'exp21'
-    exp21['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'data', 'benchmark_stimuli', 'N8'))
-    exp21['save_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'results'))
+    exp26['dataset'] = {}
+    exp26['sim'] = {}
+    exp26['mode'] = 'benchmark'
+    exp26['model'] = 'nn-sig'
+    exp26['exp_name'] = 'exp26'
+    exp26['dataset_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'data', 'benchmark_stimuli', 'N8'))
+    exp26['save_dir'] = osp.abspath(osp.join(Path(__file__).parent, '..', '..', 'results'))
     
     ## Macrofeature parameters
-    exp21['dataset']['size'] = 1000
-    exp21['dataset']['i'] = None
-    exp21['dataset']['k'] = None
-    exp21['dataset']['l'] = None
-    exp21['dataset']['m'] = None
-    exp21['dataset']['s'] = None
-    exp21['dataset']['s_list'] = None
+    exp26['dataset']['size'] = 1000
+    exp26['dataset']['i'] = None
+    exp26['dataset']['k'] = None
+    exp26['dataset']['l'] = None
+    exp26['dataset']['m'] = None
+    exp26['dataset']['s'] = None
+    exp26['dataset']['s_list'] = None
 
     ## Category parameters
     ### In order, each element contains: k, d, pdi, pd
-    exp21['dataset']['custom'] = None 
+    exp26['dataset']['custom'] = None 
     
     # Simulation parameters
-    exp21['sim']['layer_params'], exp21['sim']['sim_params'] = sim_config() 
+    exp26['sim']['layer_params'], exp26['sim']['sim_params'] = sim_config() 
     
-    # Repetition parameter
-    exp21['repeat'] = 0
-
     with open(save_fname, 'w') as f:
-        json.dump(exp21, f, indent=3)
+        json.dump(exp26, f, indent=3)
 
 if __name__ == "__main__":
     save_fname = parse_args()

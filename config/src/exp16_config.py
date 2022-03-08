@@ -4,7 +4,7 @@ Constraints on autoencoder (dimensionality reduction).
 Saving weightings from inner layer. 
 Inner representation CP measurements are non-linear. 
 No activation on autoencoder (linear).
-Sigmoid encoder
+Sigmoid classifier
 """
 
 import json
