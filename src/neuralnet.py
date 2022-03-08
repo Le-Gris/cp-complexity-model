@@ -118,15 +118,16 @@ class Net(nn.Module):
 
             if training == 'early_stop':
                 if eval_loss < best_loss[0]:
-                    if best_loss[0] - eval_loss < thresh:
+                    # Verify change in loss against relative threshold
+                    relative_criterion = thresh*best_loss[0]
+                    if best_loss[0] - eval_loss < relative_criterion:
                         patience_count +=1
                     else:
                         patience_count = 0
                     best_loss = [eval_loss, epoch]
                     torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
                 else:
-                    if test_loss[epoch] - eval_loss < thresh:
-                        patience_count += 1
+                    patience_count += 1
 
                 if patience_count == patience:
                     # End training
@@ -232,19 +233,20 @@ class Net(nn.Module):
             # Monitor 
             if training == 'early_stop':
                 if monitor == 'loss':
-                    if eval_loss <= best[0]: 
-                        if eval_loss - best[0] < threshold:
+                    if eval_loss <= best[0]:
+                        # Look at relative difference, not absolute
+                        relative_criterion = threshold*best[0]
+                        if eval_loss - best[0] < relative_criterion:
                             patience_count += 1
                         else:
                             patience_count = 0
                         best = [eval_loss, epoch]
                         torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
                     else:
-                        if test_loss[epoch] - eval_loss < threshold:
-                            patience_count += 1
+                        # Loss is larger than previous best
+                        patience_count += 1
                     if patience_count == patience:
                         break
-                #TODO: fix this to work with best model load and make it an early stop
                 elif monitor == 'acc':
                     if eval_acc >= threshold:
                         break
@@ -266,12 +268,6 @@ class Net(nn.Module):
             test_loss = test_loss[:best[1]+1]
             test_accuracy = test_accuracy[:best[1]+1]
         
-        # This should be unnecessary
-        # if torch.cuda.is_available():
-        #     for i in range(len(running_loss)):
-        #         running_loss[i] = running_loss[i].cpu()
-        #         test_loss[i] = test_loss[i].cpu()
-
         return running_loss, train_accuracy, test_loss, test_accuracy
 
     @torch.no_grad()
