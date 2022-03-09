@@ -236,7 +236,7 @@ class Net(nn.Module):
                     if eval_loss <= best[0]:
                         # Look at relative difference, not absolute
                         relative_criterion = threshold*best[0]
-                        if eval_loss - best[0] < relative_criterion:
+                        if best[0] - eval_loss < relative_criterion:
                             patience_count += 1
                         else:
                             patience_count = 0
