@@ -6,14 +6,3 @@ Categorization is a fundamental cognitive ability both for humans and other anim
 
 Keywords: *categorization*, *complexity*, *categorical perception*, *neural net*.
 
-## Setup
-
-1.
-2. 
-3.
-
-## Running
-
-1. 
-2.
-
