@@ -145,10 +145,11 @@ class Net(nn.Module):
             self.load_state_dict(best_model['model_state_dict'])
 
             # Return data up until best model
+            full_test_loss = [l for l in test_loss]
             running_loss = running_loss[:best_loss[1]+1] 
             test_loss = test_loss[:best_loss[1]+1]
         
-        return running_loss, test_loss
+        return running_loss, test_loss, full_test_loss
 
     def train_classifier(self, num_epochs, optimizer, criterion, scheduler, train_loader, test_loader, training, monitor, threshold, patience=4, verbose=False):
         """
@@ -263,12 +264,13 @@ class Net(nn.Module):
             self.load_state_dict(best_model['model_state_dict'])
             
             # Return data up until best model
+            test_loss_full = [x for x in test_loss]
             running_loss = running_loss[:best[1]+1]
             train_accuracy = train_accuracy[:best[1]+1]
             test_loss = test_loss[:best[1]+1]
             test_accuracy = test_accuracy[:best[1]+1]
         
-        return running_loss, train_accuracy, test_loss, test_accuracy
+        return running_loss, train_accuracy, test_loss, test_accuracy, test_loss_full
 
     @torch.no_grad()
     def evaluate_AE(self, dataloader, criterion):

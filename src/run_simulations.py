@@ -284,7 +284,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         weight_decay=AE_wd)
     scheduler = ReduceLROnPlateau(optimizer, patience=4)
     criterion = nn.MSELoss()
-    running_loss_AE, test_loss_AE  = neuralnet.train_autoencoder(num_epochs=AE_epochs, optimizer=optimizer, criterion=criterion, scheduler=scheduler,
+    running_loss_AE, test_loss_AE, full_test_loss_AE  = neuralnet.train_autoencoder(num_epochs=AE_epochs, optimizer=optimizer, criterion=criterion, scheduler=scheduler,
                                                                  train_loaders=train_loaders_AE, test_loader=test_loader_AE, training=training, 
                                                                  patience=AE_patience, thresh=AE_thresh, verbose=verbose)
 
@@ -293,9 +293,13 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         if os.path.exists('./.best_model.pth'):
             os.remove('./.best_model.pth')
     
+    # X-values
+    epoch_range = [x for x in range(1, len(running_loss_AE)+1)]
+    full_epoch_range = [x for x in range(1, len(full_test_loss_AE) +1)]
+
     # Plot AE training data
     plt.figure(1)
-    plt.plot(running_loss_AE)
+    plt.plot(epoch_range, running_loss_AE)
     plt.title('Autoencoder Running Loss')
     plt.ylabel('Loss')
     plt.xlabel('Epoch')
@@ -303,7 +307,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.close(1)
 
     plt.figure(2)
-    plt.plot(test_loss_AE)
+    plt.plot(epoch_range, test_loss_AE, label='Early stop')
+    if len(epoch_range) != len(full_epoch_range):
+        plt.plot(full_epoch_range[len(epoch_range)-1:], full_test_loss_AE[len(epoch_range)-1:], label='Full training')
+        plt.legend()
     plt.title('Autoencoder Test Loss')
     plt.ylabel('Loss')
     plt.xlabel('Epoch')
@@ -329,7 +336,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
                                 lr=class_lr, weight_decay=class_wd)
     scheduler = ReduceLROnPlateau(optimizer, patience=0)
     criterion = nn.MSELoss()
-    running_loss, train_accuracy, test_loss, test_accuracy = neuralnet.train_classifier(num_epochs=class_epochs, optimizer=optimizer, criterion=criterion, 
+    running_loss, train_accuracy, test_loss, test_accuracy, full_test_loss = neuralnet.train_classifier(num_epochs=class_epochs, optimizer=optimizer, criterion=criterion, 
                                                                                         scheduler=scheduler, train_loader=train_loader_cl, test_loader=test_loader_cl,
                                                                                         training=training, monitor=class_monitor, threshold=class_thresh, verbose=verbose)
     
@@ -337,10 +344,15 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     if training == 'early_stop':
         if os.path.exists('./.best_model.pth'):
             os.remove('./.best_model.pth')
+    
+    # X-values 
+    epoch_range = [x for x in range(1, len(test_loss)+1)]
+    full_epoch_range = [x for x in range(1, len(full_test_loss)+1)]
+
 
     # Plot classifier training data
     plt.figure(3)
-    plt.plot(running_loss)
+    plt.plot(epoch_range, running_loss)
     plt.title('Running Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
@@ -348,7 +360,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.close(3)
 
     plt.figure(4)
-    plt.plot(train_accuracy)
+    plt.plot(epoch_range, train_accuracy)
     plt.title('Training Set Accuracy')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
@@ -356,7 +368,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.close(4)
 
     plt.figure(5)
-    plt.plot(test_loss)
+    plt.plot(epoch_range, test_loss, label='Early stop')
+    if len(epoch_range) != len(full_epoch_range): 
+        plt.plot(full_epoch_range[len(epoch_range)-1:], full_test_loss[len(epoch_range)-1:], label='Full training')
+        plt.legend()
     plt.title('Test Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
@@ -364,10 +379,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.close(5)
 
     plt.figure(6)
-    plt.plot(test_accuracy)
+    plt.plot(epoch_range, test_accuracy)
     plt.title('Test Set Accuracy')
     plt.xlabel('Epoch')
-    plt.ylabel('Loss')
+    plt.ylabel('Accuracy')
     plt.savefig(os.path.join(path, 'plots', 'class_t-acc.png'))
     plt.close(6)
 
