@@ -237,8 +237,8 @@ def get_dim_weighting(neuralnet, layer_idx=0, model='nn'):
     return weighting
 
 def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config,
-            stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, AE_patience, AE_thresh, class_epochs,
-            class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, model='nn', layer_idx=0, rep_type='act',
+            stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, _patience, AE_thresh, class_epochs,
+            class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, eval_mode='epoch',  model='nn', layer_idx=0, rep_type='act',
             save_model=True, metric='euclid', verbose=False):
     """
     Function that runs a simulation
@@ -285,8 +285,8 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     scheduler = ReduceLROnPlateau(optimizer, patience=4)
     criterion = nn.MSELoss()
     running_loss_AE, test_loss_AE, full_test_loss_AE  = neuralnet.train_autoencoder(num_epochs=AE_epochs, optimizer=optimizer, criterion=criterion, scheduler=scheduler,
-                                                                 train_loaders=train_loaders_AE, test_loader=test_loader_AE, training=training, 
-                                                                 patience=AE_patience, thresh=AE_thresh, verbose=verbose)
+                                                                 train_loaders=train_loaders_AE, test_loader=test_loader_AE, eval_mode=eval_mode, training=training, 
+                                                                 patience=_patience, thresh=AE_thresh, verbose=verbose)
 
     # Delete temporary model (this should be moved to training class once implemented)
     if training == 'early_stop':
@@ -296,13 +296,19 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     # X-values
     epoch_range = [x for x in range(1, len(running_loss_AE)+1)]
     full_epoch_range = [x for x in range(1, len(full_test_loss_AE) +1)]
+    if eval_mode == 'batch':
+        epoch_range = 10*np.array(epoch_range)
+        full_epoch_range = 10*np.array(full_epoch_range) 
 
     # Plot AE training data
     plt.figure(1)
     plt.plot(epoch_range, running_loss_AE)
     plt.title('Autoencoder Running Loss')
     plt.ylabel('Loss')
-    plt.xlabel('Epoch')
+    if eval_mode == 'batch':
+        plt.xlabel('Batch')
+    else:
+        plt.xlabel('Epoch')
     plt.savefig(os.path.join(path, 'plots', 'ae_rloss.png'))
     plt.close(1)
 
@@ -313,7 +319,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         plt.legend()
     plt.title('Autoencoder Test Loss')
     plt.ylabel('Loss')
-    plt.xlabel('Epoch')
+    if eval_mode == 'batch':
+        plt.xlabel('Batch')
+    else:
+        plt.xlabel('Epoch')
     plt.savefig(os.path.join(path, 'plots','ae_tloss.png'))
     plt.close(2)
 
@@ -337,8 +346,9 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     scheduler = ReduceLROnPlateau(optimizer, patience=0)
     criterion = nn.MSELoss()
     running_loss, train_accuracy, test_loss, test_accuracy, full_test_loss = neuralnet.train_classifier(num_epochs=class_epochs, optimizer=optimizer, criterion=criterion, 
-                                                                                        scheduler=scheduler, train_loader=train_loader_cl, test_loader=test_loader_cl,
-                                                                                        training=training, monitor=class_monitor, threshold=class_thresh, verbose=verbose)
+                                                                                        scheduler=scheduler, train_loader=train_loader_cl, test_loader=test_loader_cl, 
+                                                                                        eval_mode=eval_mode, patience=_patience, training=training, monitor=class_monitor, threshold=class_thresh, 
+                                                                                        verbose=verbose)
     
     # Delete temporary model
     if training == 'early_stop':
@@ -348,13 +358,18 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     # X-values 
     epoch_range = [x for x in range(1, len(test_loss)+1)]
     full_epoch_range = [x for x in range(1, len(full_test_loss)+1)]
-
+    if eval_mode == 'batch':
+        epoch_range = 10*np.array(epoch_range)
+        full_epoch_range = 10*np.array(full_epoch_range)
 
     # Plot classifier training data
     plt.figure(3)
     plt.plot(epoch_range, running_loss)
     plt.title('Running Loss')
-    plt.xlabel('Epoch')
+    if eval_mode == 'batch':
+        plt.xlabel('Batch')
+    else:
+        plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.savefig(os.path.join(path, 'plots', 'class_rloss.png'))
     plt.close(3)
@@ -362,7 +377,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.figure(4)
     plt.plot(epoch_range, train_accuracy)
     plt.title('Training Set Accuracy')
-    plt.xlabel('Epoch')
+    if eval_mode == 'batch':
+        plt.xlabel('Batch')
+    else:
+        plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.savefig(os.path.join(path, 'plots','class_tr-acc.png'))
     plt.close(4)
@@ -373,7 +391,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         plt.plot(full_epoch_range[len(epoch_range)-1:], full_test_loss[len(epoch_range)-1:], label='Full training')
         plt.legend()
     plt.title('Test Loss')
-    plt.xlabel('Epoch')
+    if eval_mode == 'batch':
+        plt.xlabel('Batch')
+    else:
+        plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.savefig(os.path.join(path, 'plots', 'class_tloss.png'))
     plt.close(5)
@@ -381,7 +402,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.figure(6)
     plt.plot(epoch_range, test_accuracy)
     plt.title('Test Set Accuracy')
-    plt.xlabel('Epoch')
+    if eval_mode == 'batch':
+        plt.xlabel('Batch')
+    else:
+        plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.savefig(os.path.join(path, 'plots', 'class_t-acc.png'))
     plt.close(6)

@@ -44,7 +44,7 @@ class Net(nn.Module):
 
         return x
 
-    def train_autoencoder(self, num_epochs, optimizer, criterion, scheduler, train_loaders, test_loader, verbose=False, training='fixed', patience=3, thresh=0.001):
+    def train_autoencoder(self, num_epochs, optimizer, criterion, scheduler, train_loaders, test_loader, verbose=False, eval_mode='epoch', eval_freq=10, training='fixed', patience=3, thresh=0.001):
         """
         This function trains the autoencoder portion of the neural net model
 
@@ -66,8 +66,10 @@ class Net(nn.Module):
         # Initial setup
         running_loss = []
         test_loss = []
+        batch_counter = 1
+        trained = False
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        
+
         # Training mode setup
         if training == 'early_stop':
             # Keep track of best validation loss
@@ -108,34 +110,65 @@ class Net(nn.Module):
                 # Add loss of current pass
                 cur_running_loss += loss.detach().data.cpu().numpy()
 
-            # Save running loss
-            cur_running_loss /= len(trainloader)
-            running_loss.append(cur_running_loss)
+                if eval_mode == 'batch' and (batch_counter%eval_freq) == 0:
+                    # Save running loss
+                    cur_running_loss /= eval_freq
+                    running_loss.append(cur_running_loss)
 
-            # Eval loss
-            eval_loss = self.evaluate_AE(test_loader, criterion)
-            test_loss.append(eval_loss)
+                    # Eval loss
+                    eval_loss = self.evaluate_AE(test_loader, criterion)
+                    test_loss.append(eval_loss)
 
-            if training == 'early_stop':
-                if eval_loss < best_loss[0]:
-                    # Verify change in loss against relative threshold
-                    relative_criterion = thresh*best_loss[0]
-                    if best_loss[0] - eval_loss < relative_criterion:
-                        patience_count +=1
-                    else:
-                        patience_count = 0
-                    best_loss = [eval_loss, epoch]
-                    torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
-                else:
-                    patience_count += 1
+                    if training == 'early_stop':
+                        if eval_loss < best_loss[0]:
+                            # Verify change in loss against relative threshold
+                            relative_criterion = thresh*best_loss[0]
+                            if best_loss[0] - eval_loss < relative_criterion:
+                                patience_count += 1
+                            else:
+                                patience_count = 0
+                            best_loss = [eval_loss, len(test_loss)-1]
+                            torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
+                        else:
+                            patience_count += 1
 
-                if patience_count == patience:
-                    # End training
+                        if patience_count >= patience:
+                            # End training
+                            trained = True
+                            break
+                batch_counter += 1
+                
+                if trained:
                     break
+                                    
+            if eval_mode == 'epoch':
+                # Save running loss
+                cur_running_loss /= len(trainloader)
+                running_loss.append(cur_running_loss)
 
-            if verbose:
-                print('Autoencoder, epoch {} --> Running Loss: {} \t Eval loss: {}'.format(epoch, cur_running_loss, eval_loss))
+                # Eval loss
+                eval_loss = self.evaluate_AE(test_loader, criterion, test_dropout)
+                test_loss.append(eval_loss)
 
+                if training == 'early_stop':
+                    if eval_loss < best_loss[0]:
+                        # Verify change in loss against relative threshold
+                        relative_criterion = thresh*best_loss[0]
+                        if best_loss[0] - eval_loss < relative_criterion:
+                            patience_count +=1
+                        else:
+                            patience_count = 0
+                        best_loss = [eval_loss, epoch]
+                        torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
+                    else:
+                        patience_count += 1
+
+                    if patience_count >= patience:
+                        # End training
+                        break
+
+                if verbose:
+                    print('Autoencoder, epoch {} --> Running Loss: {} \t Eval loss: {}'.format(epoch, cur_running_loss, eval_loss))
             # Scheduler
             scheduler.step(eval_loss)
         
@@ -144,14 +177,14 @@ class Net(nn.Module):
             best_model = torch.load('./.best_model.pth')
             self.load_state_dict(best_model['model_state_dict'])
 
-            # Return data up until best model
-            full_test_loss = [l for l in test_loss]
-            running_loss = running_loss[:best_loss[1]+1] 
-            test_loss = test_loss[:best_loss[1]+1]
+        # Return data up until best model
+        full_test_loss = [l for l in test_loss]
+        running_loss = running_loss[:best_loss[1]+1] 
+        test_loss = test_loss[:best_loss[1]+1]
         
         return running_loss, test_loss, full_test_loss
 
-    def train_classifier(self, num_epochs, optimizer, criterion, scheduler, train_loader, test_loader, training, monitor, threshold, patience=4, verbose=False):
+    def train_classifier(self, num_epochs, optimizer, criterion, scheduler, train_loader, test_loader, training, monitor, threshold, eval_mode='epoch', eval_freq=10, patience=4, verbose=False):
         """
         Train the classifier portion of the neural net.
 
@@ -175,6 +208,8 @@ class Net(nn.Module):
         train_accuracy = []
         test_loss = []
         test_accuracy = []
+        trained = False
+        batch_counter = 1
 
         # Determine device to use
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -214,46 +249,92 @@ class Net(nn.Module):
 
                 # Save and add loss of current pass
                 cur_loss += loss.detach().data.cpu().numpy()
+            
+                if eval_mode == 'batch' and (batch_counter%eval_freq) == 0:
+                    # Running loss
+                    cur_loss /= eval_freq
+                    running_loss.append(cur_loss)
 
-            # Running loss
-            cur_loss /= len(train_loader)
-            running_loss.append(cur_loss)
+                    # Train accuracy
+                    _, train_acc = self.evaluate_classifier(train_loader, criterion)
+                    train_accuracy.append(train_acc)
 
-            # Train accuracy
-            _, train_acc = self.evaluate_classifier(train_loader, criterion)
-            train_accuracy.append(train_acc)
+                    # Eval loss and accuracy
+                    eval_loss, eval_acc = self.evaluate_classifier(test_loader, criterion)
+                    test_loss.append(eval_loss)
+                    test_accuracy.append(eval_acc)
+                    
+                    # Monitor
+                    if training == 'early_stop':
+                        if monitor == 'loss':
+                            if eval_loss <= best[0]:
+                                # Look at relative difference, not absolute
+                                relative_criterion = threshold*best[0]
+                                if best[0] - eval_loss < relative_criterion:
+                                    patience_count += 1
+                                else:
+                                    patience_count = 0
+                                best = [eval_loss, len(test_loss) -1]
+                                torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
+                            else:
+                                # Loss is larger than previous best
+                                patience_count += 1
+                            
+                            if patience_count >= patience:
+                                trained = True
+                                break
+                                
+                        elif monitor == 'acc':
+                            if eval_acc >= threshold:
+                                trained = True
+                                break
+                            elif eval_acc > best[0]:
+                                best = [eval_acc, len(test_loss) -1]
+                                torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
+                batch_counter += 1
+                if trained == True:
+                    break
 
-            # Eval loss and accuracy
-            eval_loss, eval_acc = self.evaluate_classifier(test_loader, criterion)
-            test_loss.append(eval_loss)
-            test_accuracy.append(eval_acc)
+            if eval_mode == 'epoch':
+                # Running loss
+                cur_loss /= len(train_loader)
+                running_loss.append(cur_loss)
 
-            if verbose:
-                print('Classifier, epoch {} --> Test loss: {} \t Test accuracy: {}'.format(epoch, eval_loss, eval_acc))
-    
-            # Monitor 
-            if training == 'early_stop':
-                if monitor == 'loss':
-                    if eval_loss <= best[0]:
-                        # Look at relative difference, not absolute
-                        relative_criterion = threshold*best[0]
-                        if best[0] - eval_loss < relative_criterion:
-                            patience_count += 1
+                # Train accuracy
+                _, train_acc = self.evaluate_classifier(train_loader, criterion)
+                train_accuracy.append(train_acc)
+
+                # Eval loss and accuracy
+                eval_loss, eval_acc = self.evaluate_classifier(test_loader, criterion)
+                test_loss.append(eval_loss)
+                test_accuracy.append(eval_acc)
+
+                if verbose:
+                    print('Classifier, epoch {} --> Test loss: {} \t Test accuracy: {}'.format(epoch, eval_loss, eval_acc))
+        
+                # Monitor 
+                if training == 'early_stop':
+                    if monitor == 'loss':
+                        if eval_loss <= best[0]:
+                            # Look at relative difference, not absolute
+                            relative_criterion = threshold*best[0]
+                            if best[0] - eval_loss < relative_criterion:
+                                patience_count += 1
+                            else:
+                                patience_count = 0
+                            best = [eval_loss, epoch]
+                            torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
                         else:
-                            patience_count = 0
-                        best = [eval_loss, epoch]
-                        torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
-                    else:
-                        # Loss is larger than previous best
-                        patience_count += 1
-                    if patience_count == patience:
-                        break
-                elif monitor == 'acc':
-                    if eval_acc >= threshold:
-                        break
-                    elif eval_acc > best[0]:
-                        best = [eval_acc, epoch]
-                        torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
+                            # Loss is larger than previous best
+                            patience_count += 1
+                        if patience_count >= patience:
+                            break
+                    elif monitor == 'acc':
+                        if eval_acc >= threshold:
+                            break
+                        elif eval_acc > best[0]:
+                            best = [eval_acc, epoch]
+                            torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
 
             # Scheduler
             scheduler.step(eval_loss)
@@ -263,12 +344,12 @@ class Net(nn.Module):
             best_model = torch.load('./.best_model.pth')
             self.load_state_dict(best_model['model_state_dict'])
             
-            # Return data up until best model
-            test_loss_full = [x for x in test_loss]
-            running_loss = running_loss[:best[1]+1]
-            train_accuracy = train_accuracy[:best[1]+1]
-            test_loss = test_loss[:best[1]+1]
-            test_accuracy = test_accuracy[:best[1]+1]
+        # Return data up until best model
+        test_loss_full = [x for x in test_loss]
+        running_loss = running_loss[:best[1]+1]
+        train_accuracy = train_accuracy[:best[1]+1]
+        test_loss = test_loss[:best[1]+1]
+        test_accuracy = test_accuracy[:best[1]+1]
         
         return running_loss, train_accuracy, test_loss, test_accuracy, test_loss_full
 
@@ -380,7 +461,7 @@ class Net(nn.Module):
             # Index of last layer
             top_layer_idx = len(self.encoder)-1
              
-            # Iterate through all layers exceot last one
+            # Iterate through all layers except last one
             in_rep = stimuli.clone().detach()
             for k, layer in enumerate(self.encoder.children()):
                 if k == top_layer_idx:
@@ -416,7 +497,7 @@ class Net(nn.Module):
         else:
             raise Exception('Invalid distance metric: use \'euclid\' or \'cosine\'')
         
-        # Return array
+        # Return array init
         return_arr = []
         
         # Compute mean by removing the diagonal values for within since we don't care about it
@@ -435,4 +516,25 @@ class Net(nn.Module):
 
         return return_arr
 
+    def sample(self, stimuli, sample_dropout, n_samples):
+        #TODO: complete sampling procedure
+        """
+        Sample representation space using dropout
+        """
+        #TODO: consider using sample_dropout list
+        
+        # Eval mode
+        self.eval()
+
+        # Device setup
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+        # Send stimuli to device
+        stimuli = stimuli.to(device)
+
+        # Set Dropout "layers" to train and p to sample_dropout
+        for m in self.encoder.children():
+            pass
+        sample = []
+        return sample
 
