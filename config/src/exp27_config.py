@@ -27,7 +27,7 @@ def sim_config():
 
     # Set sim parameters
     sim_params = OrderedDict({'train_ratio': 0.7, 'AE_epochs': 100, 
-                              'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-2.5,'AE_wd': 10e-5, 
+                              'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-2,'AE_wd': 10e-5, 
                               'AE_thresh': 0.1, 'AE_patience': 5, 'class_epochs': 100, 'class_batch_size': 8, 'class_lr': 10e-3, 
                               'class_wd': 10e-3, 'class_monitor': 'loss', 'class_thresh': 0.1, 'training': 'early_stop', 'eval_mode':'batch', 
                               'inplace_noise': True, 'rep_type': 'act', 'save_model': True, 'metric':'cosine', 'verbose': False})

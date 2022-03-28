@@ -238,7 +238,7 @@ def get_dim_weighting(neuralnet, layer_idx=0, model='nn'):
 
 def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config,
             stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, _patience, AE_thresh, class_epochs,
-            class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, eval_mode='epoch',  model='nn', layer_idx=0, rep_type='act',
+            class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, rep_diff=False, eval_mode='epoch',  model='nn', layer_idx=0, rep_type='act',
             save_model=True, metric='euclid', verbose=False):
     """
     Function that runs a simulation
@@ -284,9 +284,9 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         weight_decay=AE_wd)
     scheduler = ReduceLROnPlateau(optimizer, patience=4)
     criterion = nn.MSELoss()
-    running_loss_AE, test_loss_AE, full_test_loss_AE  = neuralnet.train_autoencoder(num_epochs=AE_epochs, optimizer=optimizer, criterion=criterion, scheduler=scheduler,
+    running_loss_AE, test_loss_AE, full_test_loss_AE, rep_diff_AE  = neuralnet.train_autoencoder(num_epochs=AE_epochs, optimizer=optimizer, criterion=criterion, scheduler=scheduler,
                                                                  train_loaders=train_loaders_AE, test_loader=test_loader_AE, eval_mode=eval_mode, training=training, 
-                                                                 patience=_patience, thresh=AE_thresh, verbose=verbose)
+                                                                 patience=_patience, thresh=AE_thresh, verbose=verbose, rep_diff=rep_diff, dataset=stimuli)
 
     # Delete temporary model (this should be moved to training class once implemented)
     if training == 'early_stop':
@@ -345,10 +345,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
                                 lr=class_lr, weight_decay=class_wd)
     scheduler = ReduceLROnPlateau(optimizer, patience=0)
     criterion = nn.MSELoss()
-    running_loss, train_accuracy, test_loss, test_accuracy, full_test_loss = neuralnet.train_classifier(num_epochs=class_epochs, optimizer=optimizer, criterion=criterion, 
+    running_loss, train_accuracy, test_loss, test_accuracy, full_test_loss, rep_diff_cl = neuralnet.train_classifier(num_epochs=class_epochs, optimizer=optimizer, criterion=criterion, 
                                                                                         scheduler=scheduler, train_loader=train_loader_cl, test_loader=test_loader_cl, 
                                                                                         eval_mode=eval_mode, patience=_patience, training=training, monitor=class_monitor, threshold=class_thresh, 
-                                                                                        verbose=verbose)
+                                                                                        verbose=verbose, rep_diff=rep_diff, dataset=stimuli)
     
     # Delete temporary model
     if training == 'early_stop':
@@ -409,7 +409,33 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.ylabel('Accuracy')
     plt.savefig(os.path.join(path, 'plots', 'class_t-acc.png'))
     plt.close(6)
+    
+    if rep_diff:
+        plt.figure(7)
+        plt.scatter(rep_diff_AE, test_loss_AE)
+        plt.title('Loss as a function of SDM (autoencoder)')
+        plt.xlabel('SDM')
+        plt.ylabel('Loss')
+        plt.savefig(os.path.join(path, 'plots', 'rep-sdm-loss-AE.png'))
+        plt.close(7)
 
+        plt.figure(8)
+        plt.scatter(rep_diff_cl, test_loss)
+        plt.title('Loss as a function of SDM (classifier)')
+        plt.xlabel('SDM')
+        plt.ylabel('Loss')
+        plt.savefig(os.path.join(path, 'plots', 'rep-sdm-loss-cl.png'))
+        plt.close(8)
+        
+        """
+        plt.figure(9)
+        plt.plot(np.array(rep_diff_AE + rep_diff_cl, np.array(test_loss_AE) 
+        plt.title('Loss as a function of SDM')
+        plt.xlabel('SDM')
+        plt.ylabel('Loss')
+        plt.savefig(os.path.join(path, 'plots', 'rep-sdm-loss.png'))
+        plt.close(9)
+        """
     # Compute CP and save
     after = neuralnet.compute_cp(stimuli=stimuli, inner=False, metric=metric, rep_type=rep_type)
     np.savez_compressed(os.path.join(path, 'cp','cp_after'), between=after[0], withinA=after[1], withinB=after[2], inner=after[3])

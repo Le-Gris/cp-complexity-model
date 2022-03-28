@@ -44,7 +44,7 @@ class Net(nn.Module):
 
         return x
 
-    def train_autoencoder(self, num_epochs, optimizer, criterion, scheduler, train_loaders, test_loader, verbose=False, eval_mode='epoch', eval_freq=10, training='fixed', patience=3, thresh=0.001):
+    def train_autoencoder(self, num_epochs, optimizer, criterion, scheduler, train_loaders, test_loader, rep_diff=False, verbose=False, eval_mode='epoch', eval_freq=10, training='fixed', patience=3, thresh=0.001, dataset=None):
         """
         This function trains the autoencoder portion of the neural net model
 
@@ -55,7 +55,7 @@ class Net(nn.Module):
         :param train_loaders: list of dataloaders (either 1 or num_epochs)
         :param test_loader: dataloader for loss
         :param scheduler: learning rate scheduler
-        :param verbose: Print training and testing information to screen
+        :param verbose: Print training and testing information to stdout
         :param training: \'fixed\' or \'early_stop\'
         :param patience: number of epochs to wait before stopping training
         :param thresh: threshold value for which it is considered that change in loss is significant 
@@ -67,6 +67,7 @@ class Net(nn.Module):
         running_loss = []
         test_loss = []
         batch_counter = 1
+        rep_diffs = []
         trained = False
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -119,6 +120,11 @@ class Net(nn.Module):
                     eval_loss = self.evaluate_AE(test_loader, criterion)
                     test_loss.append(eval_loss)
 
+                    # Get representation difficulty score
+                    if rep_diff:
+                        sdm = self.prog_diff(dataset)
+                        rep_diffs.append(sdm)
+
                     if training == 'early_stop':
                         if eval_loss < best_loss[0]:
                             # Verify change in loss against relative threshold
@@ -149,7 +155,12 @@ class Net(nn.Module):
                 # Eval loss
                 eval_loss = self.evaluate_AE(test_loader, criterion, test_dropout)
                 test_loss.append(eval_loss)
-
+                
+                # Get representation difficulty score
+                if rep_diff:
+                    sdm = self.prog_diff(dataset)
+                    rep_diffs.append(sdm)
+                
                 if training == 'early_stop':
                     if eval_loss < best_loss[0]:
                         # Verify change in loss against relative threshold
@@ -181,10 +192,12 @@ class Net(nn.Module):
         full_test_loss = [l for l in test_loss]
         running_loss = running_loss[:best_loss[1]+1] 
         test_loss = test_loss[:best_loss[1]+1]
-        
-        return running_loss, test_loss, full_test_loss
+        if rep_diff:
+            rep_diffs = rep_diffs[:best_loss[1]+1]
 
-    def train_classifier(self, num_epochs, optimizer, criterion, scheduler, train_loader, test_loader, training, monitor, threshold, eval_mode='epoch', eval_freq=10, patience=4, verbose=False):
+        return running_loss, test_loss, full_test_loss, rep_diffs
+
+    def train_classifier(self, num_epochs, optimizer, criterion, scheduler, train_loader, test_loader, training, monitor, threshold, rep_diff=False, eval_mode='epoch', eval_freq=10, patience=4, verbose=False, dataset=None):
         """
         Train the classifier portion of the neural net.
 
@@ -199,7 +212,7 @@ class Net(nn.Module):
         :param training: training type \'fixed\' or \'early_stop\'
         :param monitor: stop training depeding on \'loss\' or \'acc\' 
         :param threshold: value of threshold at which to stop training
-        :param verbose: print training and testing information to screen
+        :param verbose: print training and testing information to stdout
         :return: four arrays containing training and testing information
         """
 
@@ -208,6 +221,7 @@ class Net(nn.Module):
         train_accuracy = []
         test_loss = []
         test_accuracy = []
+        rep_diffs = []
         trained = False
         batch_counter = 1
 
@@ -247,7 +261,7 @@ class Net(nn.Module):
                 loss.backward(retain_graph=True)
                 optimizer.step()
 
-                # Save and add loss of current pass
+               # Save and add loss of current pass
                 cur_loss += loss.detach().data.cpu().numpy()
             
                 if eval_mode == 'batch' and (batch_counter%eval_freq) == 0:
@@ -263,6 +277,11 @@ class Net(nn.Module):
                     eval_loss, eval_acc = self.evaluate_classifier(test_loader, criterion)
                     test_loss.append(eval_loss)
                     test_accuracy.append(eval_acc)
+                    
+                    # Get representation difficulty score
+                    if rep_diff:
+                        sdm = self.prog_diff(dataset)
+                        rep_diffs.append(sdm)
                     
                     # Monitor
                     if training == 'early_stop':
@@ -308,6 +327,11 @@ class Net(nn.Module):
                 eval_loss, eval_acc = self.evaluate_classifier(test_loader, criterion)
                 test_loss.append(eval_loss)
                 test_accuracy.append(eval_acc)
+                
+                # Get representation difficulty
+                if rep_diff:
+                    sdm = self.prog_diff(dataset)
+                    rep_diffs.append(sdm)
 
                 if verbose:
                     print('Classifier, epoch {} --> Test loss: {} \t Test accuracy: {}'.format(epoch, eval_loss, eval_acc))
@@ -350,8 +374,10 @@ class Net(nn.Module):
         train_accuracy = train_accuracy[:best[1]+1]
         test_loss = test_loss[:best[1]+1]
         test_accuracy = test_accuracy[:best[1]+1]
-        
-        return running_loss, train_accuracy, test_loss, test_accuracy, test_loss_full
+        if rep_diff:
+            rep_diffs = rep_diffs[:best[1]+1]
+
+        return running_loss, train_accuracy, test_loss, test_accuracy, test_loss_full, rep_diffs
 
     @torch.no_grad()
     def evaluate_AE(self, dataloader, criterion):
@@ -371,7 +397,6 @@ class Net(nn.Module):
         # Save loss
         total_loss = 0.0
 
-        # for i, (stimuli, target) in enumerate(dataloader):
         for i in range(len(dataloader)):
             stimuli, target = dataloader.__iter__().__next__()
 
@@ -515,6 +540,40 @@ class Net(nn.Module):
             return_arr.append(None)
 
         return return_arr
+
+    @torch.no_grad()
+    def prog_diff(self, stimuli):
+        # Eval mode and device setup
+        self.eval()
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        
+        # Send stimuli to device
+        stimuli = stimuli.to(device)
+        
+        # Get inner representation
+        in_rep = self.forward(stimuli)
+        
+        # Get index that separates categories
+        half_index = int(in_rep.shape[0]/2)
+        
+         # Need pairwise distance calculation
+        if torch.cuda.is_available():
+                in_rep = in_rep.cpu()
+        between = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric='cosine')
+        withinA = distance.cdist(in_rep[:half_index], in_rep[:half_index], metric='cosine')
+        withinB = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric='cosine')
+        
+        # Remove self-distance values
+        np.fill_diagonal(withinA, 0)
+        np.fill_diagonal(withinB, 0)
+        
+        # Compute SDM
+        avg_w = (np.sum(withinA)/(withinA.size-withinA.shape[0]) + np.sum(withinB)/(withinB.size-withinB.shape[0]))/2
+        avg_b = np.mean(between)
+        sdm = avg_w/avg_b
+
+
+        return sdm
 
     def sample(self, stimuli, sample_dropout, n_samples):
         #TODO: complete sampling procedure
