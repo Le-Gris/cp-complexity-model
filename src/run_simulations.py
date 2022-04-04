@@ -54,10 +54,11 @@ def get_stimuli(path):
     numA = catA.shape[0]
     catB = categories['b']
     numB = catB.shape[0]
+    sdm = categories['info'][2]
     stimuli = torch.as_tensor(np.concatenate((catA, catB)), dtype=torch.float32)
     stimuli = nn.functional.normalize(stimuli)
 
-    return stimuli, numA, numB
+    return stimuli, numA, numB, sdm
 
 def create_dirstruct(save_dir, exp_name):
     """
@@ -236,10 +237,59 @@ def get_dim_weighting(neuralnet, layer_idx=0, model='nn'):
 
     return weighting
 
+def sample_uncertainty(neuralnet, stimuli, input_samplesize, sample_size, dropout_rate):
+    # TODO: read paper, then implement
+    """
+    This function samples uncertainty by computing the most likely input to have generated 
+    the activation of a layer after dropout.
+    """
+    # Set up decoder
+    decoder = neuralnet.decoder.clone()
+    decoder.requires_grad_(False)
+    
+    # Setup dropout
+    dropout = nn.Dropout(p=0.75)
+    dropout.eval()
+    
+    # Random sample stimuli
+    sample = np.random.choice(len(stimuli), sample_size, replace=False)
+    sample = stimuli[sample, :]
+
+    # Init storage array
+    likely_inputs = torch.zeros((sample*input_samplesize, stimuli.shape[1]))
+    loss_ = []
+    
+    # Send to device
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    dropout.to(device)
+    decoder.to(device)
+    sample.to(device)
+
+    for i, y in enumerate(sample):
+        y = decoder(y)
+        y = dropout(y) 
+        for j in range(input_samplesize):
+            
+            x = torch.nn.Parameter(torch.rand(y.shape), requires_grad=True).to(device)
+            optim = torch.optim.SGD([x], lr=1e-1)
+            mse = torch.nn.MSELoss()
+            losses = []
+            for m in range(5):
+                loss = mse(decoder(x), y)
+                loss.backward()
+                optim.step()
+                optim.zero_grad()
+                losses.append(loss.detach().cpu())
+            
+            loss_.append(losses)
+            likely_inputs[i, j] = x.detach().cpu()
+    
+    return sample
+
 def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config,
             stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, _patience, AE_thresh, class_epochs,
             class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, rep_diff=False, eval_mode='epoch',  model='nn', layer_idx=0, rep_type='act',
-            save_model=True, metric='euclid', verbose=False):
+            save_model=True, metric='euclid', verbose=False, sdm=None):
     """
     Function that runs a simulation
     """
@@ -427,15 +477,35 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         plt.savefig(os.path.join(path, 'plots', 'rep-sdm-loss-cl.png'))
         plt.close(8)
         
-        """
+        
         plt.figure(9)
-        plt.plot(np.array(rep_diff_AE + rep_diff_cl, np.array(test_loss_AE) 
-        plt.title('Loss as a function of SDM')
-        plt.xlabel('SDM')
-        plt.ylabel('Loss')
-        plt.savefig(os.path.join(path, 'plots', 'rep-sdm-loss.png'))
+        plt.plot(rep_diff_AE) 
+        plt.title('SDM as a function of batch cycle (autoencoder)')
+        plt.xlabel('Batch')
+        plt.ylabel('SDM')
+        plt.savefig(os.path.join(path, 'plots', 'rep-sdm-batch-ae.png'))
         plt.close(9)
-        """
+
+        plt.figure(10)
+        plt.plot(rep_diff_cl)
+        plt.title('SDM as a function of batch cycle (classifier)')
+        plt.xlabel('Batch')
+        plt.ylabel('SDM')
+        plt.savefig(os.path.join(path, 'plots', 'rep-sdm-batch-cl.png'))
+        plt.close(10)
+        
+        plt.figure(11)
+        plt.scatter(0, sdm, label='cat-sdm', c='orange')
+        plt.plot([x for x in range(1, len(rep_diff_AE)+1)], rep_diff_AE, label='autoencoder', c='green')
+        plt.plot([x for x in range(len(rep_diff_AE), len(rep_diff_cl)+len(rep_diff_AE)+1)], rep_diff_AE[len(rep_diff_AE)-1:len(rep_diff_AE)] + rep_diff_cl, label='classifier', c='blue')
+        plt.title('SDM as a function of batch cycle')
+        plt.xlabel('Batch')
+        plt.ylabel('SDM')
+        plt.legend()
+        plt.savefig(os.path.join(path, 'plots', 'rep-sdm-batch-both.png'))
+        plt.close(11)
+
+
     # Compute CP and save
     after = neuralnet.compute_cp(stimuli=stimuli, inner=False, metric=metric, rep_type=rep_type)
     np.savez_compressed(os.path.join(path, 'cp','cp_after'), between=after[0], withinA=after[1], withinB=after[2], inner=after[3])
@@ -503,7 +573,7 @@ def main(**kwargs):
         print(f'\nSimulation {j}: {p}')
         
         # Get stimuli
-        stimuli, numA, numB = get_stimuli(p)
+        stimuli, numA, numB, sdm = get_stimuli(p)
         
         # Get labels
         labels = torch.as_tensor(get_labels(numA, numB), dtype=torch.float32)
@@ -523,7 +593,7 @@ def main(**kwargs):
         sim_params['labels'] = labels
             
         # Run simulation
-        sim_run(**sim_params)
+        sim_run(**sim_params, sdm=sdm)
 
         # End of simulation
         total -= 1
