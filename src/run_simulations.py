@@ -57,7 +57,7 @@ def get_stimuli(path):
     sdm = categories['info'][2]
     stimuli = torch.as_tensor(np.concatenate((catA, catB)), dtype=torch.float32)
     stimuli = nn.functional.normalize(stimuli)
-
+    
     return stimuli, numA, numB, sdm
 
 def create_dirstruct(save_dir, exp_name):
@@ -159,7 +159,8 @@ def load_datasets(stimuli, labels, AE_batch_size, AE_epochs, class_batch_size, i
             train_loader = utils.data.DataLoader(dataset=dataset, batch_size=AE_batch_size )
             train_loaders_AE.append(train_loader)
     else:
-        train_loaders_AE.append(utils.data.TensorDataset(stimuli[train_idx], stimuli[train_idx]))
+        dataset = utils.data.TensorDataset(stimuli[train_idx], stimuli[train_idx])
+        train_loaders_AE.append(utils.data.DataLoader(dataset=dataset, batch_size=AE_batch_size))
     test_loader_AE = utils.data.DataLoader(dataset=utils.data.TensorDataset(stimuli[test_idx], stimuli[test_idx]), batch_size=AE_batch_size)
     
     # Retrieve catA and catB indices for categoricality test
@@ -288,8 +289,8 @@ def sample_uncertainty(neuralnet, stimuli, input_samplesize, sample_size, dropou
 
 def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config,
             stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, _patience, AE_thresh, class_epochs,
-            class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, rep_diff=False, eval_mode='epoch',  model='nn', layer_idx=0, rep_type='act',
-            save_model=True, metric='euclid', verbose=False, sdm=None):
+            class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, rep_diff=False, eval_mode='epoch',  model='nn', 
+            layer_idx=0, rep_type='act', save_model=True, metric='euclid', verbose=False, sdm=None, numA=None, numB=None):
     """
     Function that runs a simulation
     """
@@ -334,9 +335,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         weight_decay=AE_wd)
     scheduler = ReduceLROnPlateau(optimizer, patience=4)
     criterion = nn.MSELoss()
-    running_loss_AE, test_loss_AE, full_test_loss_AE, rep_diff_AE  = neuralnet.train_autoencoder(num_epochs=AE_epochs, optimizer=optimizer, criterion=criterion, scheduler=scheduler,
-                                                                 train_loaders=train_loaders_AE, test_loader=test_loader_AE, eval_mode=eval_mode, training=training, 
-                                                                 patience=_patience, thresh=AE_thresh, verbose=verbose, rep_diff=rep_diff, dataset=stimuli)
+    running_loss_AE, test_loss_AE, full_test_loss_AE, rep_diff_AE  = neuralnet.train_autoencoder(num_epochs=AE_epochs, optimizer=optimizer, criterion=criterion, 
+                                                                     scheduler=scheduler, train_loaders=train_loaders_AE, test_loader=test_loader_AE, eval_mode=eval_mode, 
+                                                                     training=training, patience=_patience, thresh=AE_thresh, verbose=verbose, rep_diff=rep_diff, 
+                                                                     dataset=stimuli, numA=numA, numB=numB)
 
     # Delete temporary model (this should be moved to training class once implemented)
     if training == 'early_stop':
@@ -346,9 +348,9 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     # X-values
     epoch_range = [x for x in range(1, len(running_loss_AE)+1)]
     full_epoch_range = [x for x in range(1, len(full_test_loss_AE) +1)]
-    if eval_mode == 'batch':
-        epoch_range = 10*np.array(epoch_range)
-        full_epoch_range = 10*np.array(full_epoch_range) 
+    #if eval_mode == 'batch':
+        #epoch_range = 10*np.array(epoch_range)
+        #full_epoch_range = 10*np.array(full_epoch_range) 
 
     # Plot AE training data
     plt.figure(1)
@@ -395,10 +397,11 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
                                 lr=class_lr, weight_decay=class_wd)
     scheduler = ReduceLROnPlateau(optimizer, patience=0)
     criterion = nn.MSELoss()
-    running_loss, train_accuracy, test_loss, test_accuracy, full_test_loss, rep_diff_cl = neuralnet.train_classifier(num_epochs=class_epochs, optimizer=optimizer, criterion=criterion, 
-                                                                                        scheduler=scheduler, train_loader=train_loader_cl, test_loader=test_loader_cl, 
-                                                                                        eval_mode=eval_mode, patience=_patience, training=training, monitor=class_monitor, threshold=class_thresh, 
-                                                                                        verbose=verbose, rep_diff=rep_diff, dataset=stimuli)
+    running_loss, train_accuracy, test_loss, test_accuracy, full_test_loss, rep_diff_cl = neuralnet.train_classifier(num_epochs=class_epochs, optimizer=optimizer, 
+                                                                                        criterion=criterion, scheduler=scheduler, train_loader=train_loader_cl, 
+                                                                                        test_loader=test_loader_cl, eval_mode=eval_mode, patience=_patience, 
+                                                                                        training=training, monitor=class_monitor, threshold=class_thresh, 
+                                                                                        verbose=verbose, rep_diff=rep_diff, dataset=stimuli, numA=numA, numB=numB)
     
     # Delete temporary model
     if training == 'early_stop':
@@ -408,9 +411,9 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     # X-values 
     epoch_range = [x for x in range(1, len(test_loss)+1)]
     full_epoch_range = [x for x in range(1, len(full_test_loss)+1)]
-    if eval_mode == 'batch':
-        epoch_range = 10*np.array(epoch_range)
-        full_epoch_range = 10*np.array(full_epoch_range)
+    #if eval_mode == 'batch':
+        #epoch_range = 10*np.array(epoch_range)
+        #full_epoch_range = 10*np.array(full_epoch_range)
 
     # Plot classifier training data
     plt.figure(3)
@@ -461,8 +464,12 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     plt.close(6)
     
     if rep_diff:
+        
+        rep_diff_AE = np.array(rep_diff_AE)
+        rep_diff_cl = np.array(rep_diff_cl)
+
         plt.figure(7)
-        plt.scatter(rep_diff_AE, test_loss_AE)
+        plt.scatter(rep_diff_AE[:, 2], test_loss_AE)
         plt.title('Loss as a function of SDM (autoencoder)')
         plt.xlabel('SDM')
         plt.ylabel('Loss')
@@ -470,16 +477,15 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         plt.close(7)
 
         plt.figure(8)
-        plt.scatter(rep_diff_cl, test_loss)
+        plt.scatter(rep_diff_cl[:, 2], test_loss)
         plt.title('Loss as a function of SDM (classifier)')
         plt.xlabel('SDM')
         plt.ylabel('Loss')
         plt.savefig(os.path.join(path, 'plots', 'rep-sdm-loss-cl.png'))
         plt.close(8)
         
-        
         plt.figure(9)
-        plt.plot(rep_diff_AE) 
+        plt.plot(rep_diff_AE[:, 2]) 
         plt.title('SDM as a function of batch cycle (autoencoder)')
         plt.xlabel('Batch')
         plt.ylabel('SDM')
@@ -487,7 +493,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         plt.close(9)
 
         plt.figure(10)
-        plt.plot(rep_diff_cl)
+        plt.plot(rep_diff_cl[:, 2])
         plt.title('SDM as a function of batch cycle (classifier)')
         plt.xlabel('Batch')
         plt.ylabel('SDM')
@@ -496,8 +502,9 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         
         plt.figure(11)
         plt.scatter(0, sdm, label='cat-sdm', c='orange')
-        plt.plot([x for x in range(1, len(rep_diff_AE)+1)], rep_diff_AE, label='autoencoder', c='green')
-        plt.plot([x for x in range(len(rep_diff_AE), len(rep_diff_cl)+len(rep_diff_AE)+1)], rep_diff_AE[len(rep_diff_AE)-1:len(rep_diff_AE)] + rep_diff_cl, label='classifier', c='blue')
+        plt.plot([x for x in range(1, len(rep_diff_AE)+1)], rep_diff_AE[:, 2], label='autoencoder', c='green')
+        plt.plot([x for x in range(len(rep_diff_AE), len(rep_diff_cl)+len(rep_diff_AE)+1)], 
+                np.concatenate((rep_diff_AE[len(rep_diff_AE)-1:len(rep_diff_AE), 2], rep_diff_cl[:, 2])), label='classifier', c='blue')
         plt.title('SDM as a function of batch cycle')
         plt.xlabel('Batch')
         plt.ylabel('SDM')
@@ -505,6 +512,19 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         plt.savefig(os.path.join(path, 'plots', 'rep-sdm-batch-both.png'))
         plt.close(11)
 
+        plt.figure(12)
+        plt.plot([x for x in range(1, len(rep_diff_AE)+1)], rep_diff_AE[:, 0], label='ae_w', c='indigo')
+        plt.plot([x for x in range(len(rep_diff_AE), len(rep_diff_cl)+len(rep_diff_AE)+1)], 
+                  np.concatenate((rep_diff_AE[len(rep_diff_AE)-1:len(rep_diff_AE), 0], rep_diff_cl[:, 0])), label='cl_w', c='salmon')
+        plt.plot([x for x in range(1, len(rep_diff_AE)+1)], rep_diff_AE[:, 1], label='ae_b', c='teal')
+        plt.plot([x for x in range(len(rep_diff_AE), len(rep_diff_cl)+len(rep_diff_AE)+1)], 
+                  np.concatenate((rep_diff_AE[len(rep_diff_AE)-1:len(rep_diff_AE), 1], rep_diff_cl[:, 1])), label='cl_b', c='forestgreen')
+        plt.title('Mean within and between cosine distances as a function of batch cycle')
+        plt.xlabel('Batch')
+        plt.ylabel('Cosine distance')
+        plt.legend()
+        plt.savefig(os.path.join(path, 'plots', 'rep-dist-both.png'))
+        plt.close(12)
 
     # Compute CP and save
     after = neuralnet.compute_cp(stimuli=stimuli, inner=False, metric=metric, rep_type=rep_type)
@@ -593,7 +613,7 @@ def main(**kwargs):
         sim_params['labels'] = labels
             
         # Run simulation
-        sim_run(**sim_params, sdm=sdm)
+        sim_run(**sim_params, sdm=sdm, numA=numA, numB=numB)
 
         # End of simulation
         total -= 1

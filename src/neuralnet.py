@@ -44,7 +44,8 @@ class Net(nn.Module):
 
         return x
 
-    def train_autoencoder(self, num_epochs, optimizer, criterion, scheduler, train_loaders, test_loader, rep_diff=False, verbose=False, eval_mode='epoch', eval_freq=10, training='fixed', patience=3, thresh=0.001, dataset=None):
+    def train_autoencoder(self, num_epochs, optimizer, criterion, scheduler, train_loaders, test_loader, numA, numB, rep_diff=False, verbose=False, 
+                            eval_mode='epoch', eval_freq=5, training='fixed', patience=3, thresh=0.01, dataset=None):
         """
         This function trains the autoencoder portion of the neural net model
 
@@ -66,7 +67,7 @@ class Net(nn.Module):
         # Initial setup
         running_loss = []
         test_loss = []
-        batch_counter = 1
+        batch_counter = 0
         rep_diffs = []
         trained = False
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -76,20 +77,26 @@ class Net(nn.Module):
             # Keep track of best validation loss
             best_loss = [math.inf, -1]
             patience_count = 0
+        
+        # get initial sdm score
+        if rep_diff:
+            w, b, sdm = self.prog_diff(dataset.clone(), numA, numB)
+            print(w,b,sdm)
 
         # Training 
         for epoch in range(num_epochs):
 
             cur_running_loss = 0.0
 
-            # Load training dataset with new noise or same
+            # Load training dataset with in-place noise or static noise
             if len(train_loaders) > 1:
                 trainloader = train_loaders[epoch]
             else:
                 trainloader = train_loaders[0]
 
             for i, (stimuli, target) in enumerate(trainloader):
-
+                
+                # Send inputs and labels to device
                 stimuli = stimuli.to(device)
                 target = target.to(device)
 
@@ -107,23 +114,22 @@ class Net(nn.Module):
                 loss.backward()
                 optimizer.step()
 
-
                 # Add loss of current pass
                 cur_running_loss += loss.detach().data.cpu().numpy()
 
-                if eval_mode == 'batch' and (batch_counter%eval_freq) == 0:
+                if eval_mode == 'batch' and ((batch_counter+1)%eval_freq) == 0:
                     # Save running loss
                     cur_running_loss /= eval_freq
                     running_loss.append(cur_running_loss)
 
-                    # Eval loss
+                    # Evaluate on test set and get eval loss
                     eval_loss = self.evaluate_AE(test_loader, criterion)
                     test_loss.append(eval_loss)
 
                     # Get representation difficulty score
                     if rep_diff:
-                        sdm = self.prog_diff(dataset)
-                        rep_diffs.append(sdm)
+                        w, b, sdm = self.prog_diff(dataset.clone(), numA, numB)
+                        rep_diffs.append([w,b, sdm])
 
                     if training == 'early_stop':
                         if eval_loss < best_loss[0]:
@@ -158,7 +164,7 @@ class Net(nn.Module):
                 
                 # Get representation difficulty score
                 if rep_diff:
-                    sdm = self.prog_diff(dataset)
+                    sdm = self.prog_diff(dataset.clone(), numA, numB)
                     rep_diffs.append(sdm)
                 
                 if training == 'early_stop':
@@ -197,7 +203,8 @@ class Net(nn.Module):
 
         return running_loss, test_loss, full_test_loss, rep_diffs
 
-    def train_classifier(self, num_epochs, optimizer, criterion, scheduler, train_loader, test_loader, training, monitor, threshold, rep_diff=False, eval_mode='epoch', eval_freq=10, patience=4, verbose=False, dataset=None):
+    def train_classifier(self, num_epochs, optimizer, criterion, scheduler, train_loader, test_loader, training, monitor, threshold, numA, numB, rep_diff=False, 
+                        eval_mode='epoch', eval_freq=5, patience=4, verbose=False, dataset=None):
         """
         Train the classifier portion of the neural net.
 
@@ -223,7 +230,7 @@ class Net(nn.Module):
         test_accuracy = []
         rep_diffs = []
         trained = False
-        batch_counter = 1
+        batch_counter = 0
 
         # Determine device to use
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -235,6 +242,11 @@ class Net(nn.Module):
                 patience_count = 0
             elif monitor == 'acc':
                 best = [0, -1]
+        
+        # get initial sdm score
+        if rep_diff:
+            w, b, sdm = self.prog_diff(dataset.clone(), numA, numB)
+            print(w,b,sdm)
 
         for epoch in range(num_epochs):
 
@@ -264,7 +276,7 @@ class Net(nn.Module):
                # Save and add loss of current pass
                 cur_loss += loss.detach().data.cpu().numpy()
             
-                if eval_mode == 'batch' and (batch_counter%eval_freq) == 0:
+                if eval_mode == 'batch' and ((batch_counter+1)%eval_freq) == 0:
                     # Running loss
                     cur_loss /= eval_freq
                     running_loss.append(cur_loss)
@@ -280,8 +292,8 @@ class Net(nn.Module):
                     
                     # Get representation difficulty score
                     if rep_diff:
-                        sdm = self.prog_diff(dataset)
-                        rep_diffs.append(sdm)
+                        w, b, sdm = self.prog_diff(dataset.clone(), numA, numB)
+                        rep_diffs.append([w, b, sdm])
                     
                     # Monitor
                     if training == 'early_stop':
@@ -310,7 +322,9 @@ class Net(nn.Module):
                             elif eval_acc > best[0]:
                                 best = [eval_acc, len(test_loss) -1]
                                 torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
+                
                 batch_counter += 1
+                
                 if trained == True:
                     break
 
@@ -330,7 +344,7 @@ class Net(nn.Module):
                 
                 # Get representation difficulty
                 if rep_diff:
-                    sdm = self.prog_diff(dataset)
+                    sdm = self.prog_diff(dataset.clone(), numA, numB)
                     rep_diffs.append(sdm)
 
                 if verbose:
@@ -407,6 +421,7 @@ class Net(nn.Module):
             pred = self.forward(stimuli, decode=True)
             test_loss = criterion(pred, target)
             total_loss += test_loss.item()
+        
         total_loss /= len(dataloader)
 
         return total_loss
@@ -515,7 +530,7 @@ class Net(nn.Module):
                 in_rep = in_rep.cpu()
             between = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric=metric)
             withinA = distance.cdist(in_rep[:half_index], in_rep[:half_index], metric=metric)
-            withinB = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric=metric)
+            withinB = distance.cdist(in_rep[half_index:], in_rep[half_index:], metric=metric)
             # Remove self-similarity values    
             np.fill_diagonal(withinA, 0)
             np.fill_diagonal(withinB, 0)
@@ -542,7 +557,8 @@ class Net(nn.Module):
         return return_arr
 
     @torch.no_grad()
-    def prog_diff(self, stimuli):
+    def prog_diff(self, stimuli, numA, numB):
+        
         # Eval mode and device setup
         self.eval()
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -554,26 +570,29 @@ class Net(nn.Module):
         in_rep = self.forward(stimuli)
         
         # Get index that separates categories
-        half_index = int(in_rep.shape[0]/2)
+        #half_index = int(in_rep.shape[0]/2)
+        #print(in_rep.shape) 
         
-         # Need pairwise distance calculation
+        # Need pairwise distance calculation
         if torch.cuda.is_available():
                 in_rep = in_rep.cpu()
-        between = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric='cosine')
-        withinA = distance.cdist(in_rep[:half_index], in_rep[:half_index], metric='cosine')
-        withinB = distance.cdist(in_rep[:half_index], in_rep[half_index:], metric='cosine')
+        between = distance.cdist(in_rep[:numA], in_rep[numA:], metric='cosine')
+        withinA = distance.cdist(in_rep[:numA], in_rep[:numA], metric='cosine')
+        withinB = distance.cdist(in_rep[numA:], in_rep[numA:], metric='cosine')
         
         # Remove self-distance values
         np.fill_diagonal(withinA, 0)
         np.fill_diagonal(withinB, 0)
         
         # Compute SDM
+        assert withinA.shape[0] == withinA.shape[1]
+        assert withinB.shape[0] == withinB.shape[1]
         avg_w = (np.sum(withinA)/(withinA.size-withinA.shape[0]) + np.sum(withinB)/(withinB.size-withinB.shape[0]))/2
         avg_b = np.mean(between)
         sdm = avg_w/avg_b
 
 
-        return sdm
+        return avg_w, avg_b, sdm
 
     def sample(self, stimuli, sample_dropout, n_samples):
         #TODO: complete sampling procedure
