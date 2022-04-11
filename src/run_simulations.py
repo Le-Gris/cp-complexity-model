@@ -54,11 +54,11 @@ def get_stimuli(path):
     numA = catA.shape[0]
     catB = categories['b']
     numB = catB.shape[0]
-    sdm = categories['info'][2]
+    info = categories['info']
     stimuli = torch.as_tensor(np.concatenate((catA, catB)), dtype=torch.float32)
     stimuli = nn.functional.normalize(stimuli)
     
-    return stimuli, numA, numB, sdm
+    return stimuli, numA, numB, info
 
 def create_dirstruct(save_dir, exp_name):
     """
@@ -290,7 +290,7 @@ def sample_uncertainty(neuralnet, stimuli, input_samplesize, sample_size, dropou
 def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config,
             stimuli, labels, train_ratio, AE_epochs, AE_batch_size, noise_factor, AE_lr, AE_wd, _patience, AE_thresh, class_epochs,
             class_batch_size, class_lr, class_wd, class_monitor, class_thresh, training, inplace_noise, save_path, rep_diff=False, eval_mode='epoch',  model='nn', 
-            layer_idx=0, rep_type='act', save_model=True, metric='euclid', verbose=False, sdm=None, numA=None, numB=None):
+            layer_idx=0, rep_type='act', save_model=True, metric='euclid', verbose=False, info=None, numA=None, numB=None):
     """
     Function that runs a simulation
     """
@@ -465,11 +465,11 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     
     if rep_diff:
         
-        rep_diff_AE = np.array(rep_diff_AE)
-        rep_diff_cl = np.array(rep_diff_cl)
-
+        rep_diff_AE = np.array(rep_diff_AE)[:len(test_loss_AE)+1]
+        rep_diff_cl = np.array(rep_diff_cl)[:len(test_loss)+1]
+        
         plt.figure(7)
-        plt.scatter(rep_diff_AE[:, 2], test_loss_AE)
+        plt.scatter(rep_diff_AE[1:, 2], test_loss_AE, c='black', marker='.')
         plt.title('Loss as a function of SDM (autoencoder)')
         plt.xlabel('SDM')
         plt.ylabel('Loss')
@@ -477,7 +477,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         plt.close(7)
 
         plt.figure(8)
-        plt.scatter(rep_diff_cl[:, 2], test_loss)
+        plt.scatter(rep_diff_cl[1:, 2], test_loss, c='black', marker='.')
         plt.title('Loss as a function of SDM (classifier)')
         plt.xlabel('SDM')
         plt.ylabel('Loss')
@@ -485,43 +485,56 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         plt.close(8)
         
         plt.figure(9)
-        plt.plot(rep_diff_AE[:, 2]) 
+        plt.scatter([0], rep_diff_AE[0, 2], label='init', c='grey', marker='v')
+        plt.plot(np.arange(1, len(rep_diff_AE)), rep_diff_AE[1:, 2], c='black', marker='.') 
         plt.title('SDM as a function of batch cycle (autoencoder)')
         plt.xlabel('Batch')
         plt.ylabel('SDM')
+        plt.legend()
         plt.savefig(os.path.join(path, 'plots', 'rep-sdm-batch-ae.png'))
         plt.close(9)
 
         plt.figure(10)
-        plt.plot(rep_diff_cl[:, 2])
+        plt.scatter([0], rep_diff_cl[0, 2], label='init', marker='v', c='grey')
+        plt.plot(np.arange(1, len(rep_diff_cl)), rep_diff_cl[1:, 2], marker='x', c='black')
         plt.title('SDM as a function of batch cycle (classifier)')
         plt.xlabel('Batch')
         plt.ylabel('SDM')
+        plt.legend()
         plt.savefig(os.path.join(path, 'plots', 'rep-sdm-batch-cl.png'))
         plt.close(10)
         
         plt.figure(11)
-        plt.scatter(0, sdm, label='cat-sdm', c='orange')
-        plt.plot([x for x in range(1, len(rep_diff_AE)+1)], rep_diff_AE[:, 2], label='autoencoder', c='green')
-        plt.plot([x for x in range(len(rep_diff_AE), len(rep_diff_cl)+len(rep_diff_AE)+1)], 
-                np.concatenate((rep_diff_AE[len(rep_diff_AE)-1:len(rep_diff_AE), 2], rep_diff_cl[:, 2])), label='classifier', c='blue')
+        plt.scatter(0, info[2], label='category sdm', marker='1', c='black')
+        plt.scatter([0], rep_diff_AE[0, 2], label='init', marker='v', c='black')
+        plt.plot(np.arange(1, len(rep_diff_AE)), rep_diff_AE[1:, 2], label='autoencoder', c='black', marker='.')
+        plt.plot(np.arange(len(rep_diff_AE), len(rep_diff_cl)+len(rep_diff_AE)), rep_diff_cl[:, 2], label='classifier', c='black', marker='x')
         plt.title('SDM as a function of batch cycle')
         plt.xlabel('Batch')
         plt.ylabel('SDM')
+        plt.ylim((0, 1))
         plt.legend()
         plt.savefig(os.path.join(path, 'plots', 'rep-sdm-batch-both.png'))
         plt.close(11)
 
         plt.figure(12)
-        plt.plot([x for x in range(1, len(rep_diff_AE)+1)], rep_diff_AE[:, 0], label='ae_w', c='indigo')
-        plt.plot([x for x in range(len(rep_diff_AE), len(rep_diff_cl)+len(rep_diff_AE)+1)], 
-                  np.concatenate((rep_diff_AE[len(rep_diff_AE)-1:len(rep_diff_AE), 0], rep_diff_cl[:, 0])), label='cl_w', c='salmon')
-        plt.plot([x for x in range(1, len(rep_diff_AE)+1)], rep_diff_AE[:, 1], label='ae_b', c='teal')
-        plt.plot([x for x in range(len(rep_diff_AE), len(rep_diff_cl)+len(rep_diff_AE)+1)], 
-                  np.concatenate((rep_diff_AE[len(rep_diff_AE)-1:len(rep_diff_AE), 1], rep_diff_cl[:, 1])), label='cl_b', c='forestgreen')
+        #within=grey, between=black, 1=cat, 2=init, 3=ae, 4=class
+        # cat
+        plt.scatter([0], info[0], label='cat-within', c='grey', marker='1')
+        plt.scatter([0], info[1], label='cat-between', c='black', marker='1')
+        # random init
+        plt.scatter([0], rep_diff_AE[0, 0], c='grey', label='init-within', marker='v')
+        plt.scatter([0], rep_diff_AE[0, 1], c='black', label='init-between', marker='v')
+        # Autoencoder
+        plt.plot(np.arange(1, len(rep_diff_AE)), rep_diff_AE[1:, 0], label='ae-within', c='grey', marker='.')
+        plt.plot(np.arange(1, len(rep_diff_AE)), rep_diff_AE[1:, 1], label='ae-between', c='black', marker='.')
+        # classifier
+        plt.plot(np.arange(len(rep_diff_AE), len(rep_diff_AE)+len(rep_diff_cl)), rep_diff_cl[:, 0], label='cl-within', c='grey', marker='x')
+        plt.plot(np.arange(len(rep_diff_AE), len(rep_diff_AE)+len(rep_diff_cl)), rep_diff_cl[:, 1], label='cl-between', c='black', marker='x')
         plt.title('Mean within and between cosine distances as a function of batch cycle')
         plt.xlabel('Batch')
         plt.ylabel('Cosine distance')
+        plt.ylim((0, 2))
         plt.legend()
         plt.savefig(os.path.join(path, 'plots', 'rep-dist-both.png'))
         plt.close(12)
@@ -593,7 +606,7 @@ def main(**kwargs):
         print(f'\nSimulation {j}: {p}')
         
         # Get stimuli
-        stimuli, numA, numB, sdm = get_stimuli(p)
+        stimuli, numA, numB, info = get_stimuli(p)
         
         # Get labels
         labels = torch.as_tensor(get_labels(numA, numB), dtype=torch.float32)
@@ -613,7 +626,7 @@ def main(**kwargs):
         sim_params['labels'] = labels
             
         # Run simulation
-        sim_run(**sim_params, sdm=sdm, numA=numA, numB=numB)
+        sim_run(**sim_params, info=info, numA=numA, numB=numB)
 
         # End of simulation
         total -= 1

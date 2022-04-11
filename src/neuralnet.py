@@ -5,6 +5,7 @@ import torch
 from torch import nn, utils
 import numpy as np
 from scipy.spatial import distance
+from sklearn.metrics.pairwise import cosine_similarity
 from torch.nn import functional as F
 import math
 
@@ -81,7 +82,7 @@ class Net(nn.Module):
         # get initial sdm score
         if rep_diff:
             w, b, sdm = self.prog_diff(dataset.clone(), numA, numB)
-            print(w,b,sdm)
+            rep_diffs.append([w,b,sdm])
 
         # Training 
         for epoch in range(num_epochs):
@@ -143,15 +144,15 @@ class Net(nn.Module):
                             torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
                         else:
                             patience_count += 1
-
+                        
                         if patience_count >= patience:
                             # End training
                             trained = True
                             break
                 batch_counter += 1
                 
-                if trained:
-                    break
+            if trained:
+                break
                                     
             if eval_mode == 'epoch':
                 # Save running loss
@@ -198,8 +199,8 @@ class Net(nn.Module):
         full_test_loss = [l for l in test_loss]
         running_loss = running_loss[:best_loss[1]+1] 
         test_loss = test_loss[:best_loss[1]+1]
-        if rep_diff:
-            rep_diffs = rep_diffs[:best_loss[1]+1]
+        #if rep_diff:
+            #rep_diffs = rep_diffs[:best_loss[1]+1]
 
         return running_loss, test_loss, full_test_loss, rep_diffs
 
@@ -246,7 +247,7 @@ class Net(nn.Module):
         # get initial sdm score
         if rep_diff:
             w, b, sdm = self.prog_diff(dataset.clone(), numA, numB)
-            print(w,b,sdm)
+            rep_diffs.append([w,b,sdm])
 
         for epoch in range(num_epochs):
 
@@ -325,8 +326,8 @@ class Net(nn.Module):
                 
                 batch_counter += 1
                 
-                if trained == True:
-                    break
+            if trained:
+                break
 
             if eval_mode == 'epoch':
                 # Running loss
@@ -388,8 +389,8 @@ class Net(nn.Module):
         train_accuracy = train_accuracy[:best[1]+1]
         test_loss = test_loss[:best[1]+1]
         test_accuracy = test_accuracy[:best[1]+1]
-        if rep_diff:
-            rep_diffs = rep_diffs[:best[1]+1]
+        #if rep_diff:
+            #rep_diffs = rep_diffs[:best[1]+2]
 
         return running_loss, train_accuracy, test_loss, test_accuracy, test_loss_full, rep_diffs
 
@@ -569,28 +570,24 @@ class Net(nn.Module):
         # Get inner representation
         in_rep = self.forward(stimuli)
         
-        # Get index that separates categories
-        #half_index = int(in_rep.shape[0]/2)
-        #print(in_rep.shape) 
-        
-        # Need pairwise distance calculation
+        # Need pairwise cosine similarity calculation
         if torch.cuda.is_available():
                 in_rep = in_rep.cpu()
+        
         between = distance.cdist(in_rep[:numA], in_rep[numA:], metric='cosine')
         withinA = distance.cdist(in_rep[:numA], in_rep[:numA], metric='cosine')
         withinB = distance.cdist(in_rep[numA:], in_rep[numA:], metric='cosine')
-        
-        # Remove self-distance values
+
+        # Remove self-similarity/distance values
         np.fill_diagonal(withinA, 0)
         np.fill_diagonal(withinB, 0)
         
         # Compute SDM
         assert withinA.shape[0] == withinA.shape[1]
         assert withinB.shape[0] == withinB.shape[1]
-        avg_w = (np.sum(withinA)/(withinA.size-withinA.shape[0]) + np.sum(withinB)/(withinB.size-withinB.shape[0]))/2
+        avg_w = (np.sum(withinA)/(withinA.size-withinA.shape[0]))*numA/(numA+numB) + (np.sum(withinB)/(withinB.size-withinB.shape[0]))*numB/(numA+numB)
         avg_b = np.mean(between)
         sdm = avg_w/avg_b
-
 
         return avg_w, avg_b, sdm
 
