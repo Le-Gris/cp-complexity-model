@@ -20,6 +20,8 @@ from scipy.spatial.distance import cdist
 from scipy.stats import ks_2samp
 from src import model_arch
 plt.ioff()
+plt.rcParams['figure.dpi'] = 1200
+
 
 def parse_args():
     """
@@ -512,7 +514,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         plt.title('SDM as a function of batch cycle')
         plt.xlabel('Batch')
         plt.ylabel('SDM')
-        plt.ylim((0, 1))
+        plt.ylim((-0.015, 1))
         plt.legend()
         plt.savefig(os.path.join(path, 'plots', 'rep-sdm-batch-both.png'))
         plt.close(11)
@@ -534,10 +536,12 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         plt.title('Mean within and between cosine distances as a function of batch cycle')
         plt.xlabel('Batch')
         plt.ylabel('Cosine distance')
-        plt.ylim((0, 2))
+        plt.ylim((-0.015, 2))
         plt.legend()
         plt.savefig(os.path.join(path, 'plots', 'rep-dist-both.png'))
         plt.close(12)
+    
+    plt.close('all')
 
     # Compute CP and save
     after = neuralnet.compute_cp(stimuli=stimuli, inner=False, metric=metric, rep_type=rep_type)
@@ -550,7 +554,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     # Stack autoencoder and classifier training and testing data
     ae_data = np.stack([running_loss_AE, test_loss_AE])
     class_data = np.stack([running_loss, train_accuracy, test_loss, test_accuracy])
-
+    
     code = []
     code.append(cat_code)
     
@@ -565,7 +569,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     np.savez_compressed(os.path.join(path, 'categoricality', 'scores'), cat_score=cat_score, nwA=neural_dist_wA, nwB=neural_dist_wB, nwBt=neural_dist_bet)
     ## Neural net/sim data
     np.savez_compressed(os.path.join(path, 'sim_' + str(sim_num)), ae=ae_data, classifier=class_data, code=code, test_idx=test_idx, before_weighting=before_weighting,
-                        after_weighting=after_weighting)
+                        after_weighting=after_weighting, rep_diff_ae=rep_diff_AE, rep_diff_cl=rep_diff_cl)
 
 def main(**kwargs):
     
