@@ -20,7 +20,8 @@ from scipy.spatial.distance import cdist
 from scipy.stats import ks_2samp
 from src import model_arch
 plt.ioff()
-plt.rcParams['figure.dpi'] = 1200
+plt.rcParams['savefig.dpi'] = 1200
+plt.rcParams['lines.markersize'] = np.sqrt(15)
 
 
 def parse_args():
@@ -309,6 +310,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         if save_model:
             os.mkdir(os.path.join(path, 'model_checkpoints'))
     
+    # Init log
+    with open(os.path.join(path, 'log.txt'), 'a') as f:
+        f.write(f'Log for sim {sim_num}')
+
     # Setup neural net
     neuralnet = NN.Net(encoder_config=encoder_config, decoder_config=decoder_config,
                        classifier_config=classifier_config)
@@ -337,7 +342,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         weight_decay=AE_wd)
     scheduler = ReduceLROnPlateau(optimizer, patience=4)
     criterion = nn.MSELoss()
-    running_loss_AE, test_loss_AE, full_test_loss_AE, rep_diff_AE  = neuralnet.train_autoencoder(num_epochs=AE_epochs, optimizer=optimizer, criterion=criterion, 
+    running_loss_AE, test_loss_AE, full_test_loss_AE, rep_diff_AE, log  = neuralnet.train_autoencoder(num_epochs=AE_epochs, optimizer=optimizer, criterion=criterion, 
                                                                      scheduler=scheduler, train_loaders=train_loaders_AE, test_loader=test_loader_AE, eval_mode=eval_mode, 
                                                                      training=training, patience=_patience, thresh=AE_thresh, verbose=verbose, rep_diff=rep_diff, 
                                                                      dataset=stimuli, numA=numA, numB=numB)
@@ -347,6 +352,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         if os.path.exists('./.best_model.pth'):
             os.remove('./.best_model.pth')
     
+    # Save log
+    with open(os.path.join(path, 'log.txt'), 'a') as f:
+        f.write(log)
+
     # X-values
     epoch_range = [x for x in range(1, len(running_loss_AE)+1)]
     full_epoch_range = [x for x in range(1, len(full_test_loss_AE) +1)]
@@ -399,7 +408,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
                                 lr=class_lr, weight_decay=class_wd)
     scheduler = ReduceLROnPlateau(optimizer, patience=0)
     criterion = nn.MSELoss()
-    running_loss, train_accuracy, test_loss, test_accuracy, full_test_loss, rep_diff_cl = neuralnet.train_classifier(num_epochs=class_epochs, optimizer=optimizer, 
+    running_loss, train_accuracy, test_loss, test_accuracy, full_test_loss, rep_diff_cl, log = neuralnet.train_classifier(num_epochs=class_epochs, optimizer=optimizer, 
                                                                                         criterion=criterion, scheduler=scheduler, train_loader=train_loader_cl, 
                                                                                         test_loader=test_loader_cl, eval_mode=eval_mode, patience=_patience, 
                                                                                         training=training, monitor=class_monitor, threshold=class_thresh, 
@@ -409,6 +418,10 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
     if training == 'early_stop':
         if os.path.exists('./.best_model.pth'):
             os.remove('./.best_model.pth')
+    
+    # Save log
+    with open(os.path.join(path, 'log.txt'), 'a') as f:
+        f.write(log)
     
     # X-values 
     epoch_range = [x for x in range(1, len(test_loss)+1)]
@@ -514,7 +527,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         plt.title('SDM as a function of batch cycle')
         plt.xlabel('Batch')
         plt.ylabel('SDM')
-        plt.ylim((-0.015, 1))
+        plt.ylim((-0.05, 1.05))
         plt.legend()
         plt.savefig(os.path.join(path, 'plots', 'rep-sdm-batch-both.png'))
         plt.close(11)
@@ -536,7 +549,7 @@ def sim_run(sim_num, cat_code, encoder_config, decoder_config, classifier_config
         plt.title('Mean within and between cosine distances as a function of batch cycle')
         plt.xlabel('Batch')
         plt.ylabel('Cosine distance')
-        plt.ylim((-0.015, 2))
+        plt.ylim((-0.05, 2.05))
         plt.legend()
         plt.savefig(os.path.join(path, 'plots', 'rep-dist-both.png'))
         plt.close(12)

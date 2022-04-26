@@ -72,7 +72,8 @@ class Net(nn.Module):
         rep_diffs = []
         trained = False
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+        log = ''
+        
         # Training mode setup
         if training == 'early_stop':
             # Keep track of best validation loss
@@ -86,7 +87,7 @@ class Net(nn.Module):
 
         # Training 
         for epoch in range(num_epochs):
-
+            log += f'Autoencoder epoch {epoch+1}\n'
             cur_running_loss = 0.0
 
             # Load training dataset with in-place noise or static noise
@@ -96,6 +97,8 @@ class Net(nn.Module):
                 trainloader = train_loaders[0]
 
             for i, (stimuli, target) in enumerate(trainloader):
+                
+                log += f'\tBatch {i+1}\n' 
                 
                 # Send inputs and labels to device
                 stimuli = stimuli.to(device)
@@ -119,6 +122,8 @@ class Net(nn.Module):
                 cur_running_loss += loss.detach().data.cpu().numpy()
 
                 if eval_mode == 'batch' and ((batch_counter+1)%eval_freq) == 0:
+                    log+= f'\tBatch eval mode:\n'
+                    
                     # Save running loss
                     cur_running_loss /= eval_freq
                     running_loss.append(cur_running_loss)
@@ -133,6 +138,8 @@ class Net(nn.Module):
                         rep_diffs.append([w,b, sdm])
 
                     if training == 'early_stop':
+                        log += f'\t - Current best loss: {best_loss[0]:.2f}, {best_loss[1]}\n'
+                        log += f'\t - Current test loss: {eval_loss:.2f}\n'
                         if eval_loss < best_loss[0]:
                             # Verify change in loss against relative threshold
                             relative_criterion = thresh*best_loss[0]
@@ -144,7 +151,7 @@ class Net(nn.Module):
                             torch.save({'model_state_dict': self.state_dict()}, './.best_model.pth')
                         else:
                             patience_count += 1
-                        
+                        log += f'\t - Patience count: {patience_count}\n'
                         if patience_count >= patience:
                             # End training
                             trained = True
@@ -199,10 +206,8 @@ class Net(nn.Module):
         full_test_loss = [l for l in test_loss]
         running_loss = running_loss[:best_loss[1]+1] 
         test_loss = test_loss[:best_loss[1]+1]
-        #if rep_diff:
-            #rep_diffs = rep_diffs[:best_loss[1]+1]
 
-        return running_loss, test_loss, full_test_loss, rep_diffs
+        return running_loss, test_loss, full_test_loss, rep_diffs, log
 
     def train_classifier(self, num_epochs, optimizer, criterion, scheduler, train_loader, test_loader, training, monitor, threshold, numA, numB, rep_diff=False, 
                         eval_mode='epoch', eval_freq=5, patience=4, verbose=False, dataset=None):
@@ -232,7 +237,8 @@ class Net(nn.Module):
         rep_diffs = []
         trained = False
         batch_counter = 0
-
+        log = ''
+        
         # Determine device to use
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -250,12 +256,16 @@ class Net(nn.Module):
             rep_diffs.append([w,b,sdm])
 
         for epoch in range(num_epochs):
-
+            
+            log += f'Classifier epoch {epoch+1}\n'
+            
             # Save running loss
             cur_loss = 0.0
 
             for i, (stimuli, labels) in enumerate(train_loader):
-
+                
+                log += f'\tBatch {i+1}\n'
+                
                 # Pass training data to device
                 stimuli = stimuli.to(device)
                 labels = labels.to(device)
@@ -278,6 +288,9 @@ class Net(nn.Module):
                 cur_loss += loss.detach().data.cpu().numpy()
             
                 if eval_mode == 'batch' and ((batch_counter+1)%eval_freq) == 0:
+                    
+                    log+= f'\tBatch eval mode:\n'
+
                     # Running loss
                     cur_loss /= eval_freq
                     running_loss.append(cur_loss)
@@ -291,6 +304,7 @@ class Net(nn.Module):
                     test_loss.append(eval_loss)
                     test_accuracy.append(eval_acc)
                     
+
                     # Get representation difficulty score
                     if rep_diff:
                         w, b, sdm = self.prog_diff(dataset.clone(), numA, numB)
@@ -298,6 +312,8 @@ class Net(nn.Module):
                     
                     # Monitor
                     if training == 'early_stop':
+                        log += f'\t - Current best {monitor}: {best[0]:.2f}, {best[1]}\n'
+                        log += f'\t - Current test loss: {eval_loss:.2f}\n'
                         if monitor == 'loss':
                             if eval_loss <= best[0]:
                                 # Look at relative difference, not absolute
@@ -311,7 +327,7 @@ class Net(nn.Module):
                             else:
                                 # Loss is larger than previous best
                                 patience_count += 1
-                            
+                            log += f'\t - Patience count: {patience_count}\n'            
                             if patience_count >= patience:
                                 trained = True
                                 break
@@ -389,10 +405,8 @@ class Net(nn.Module):
         train_accuracy = train_accuracy[:best[1]+1]
         test_loss = test_loss[:best[1]+1]
         test_accuracy = test_accuracy[:best[1]+1]
-        #if rep_diff:
-            #rep_diffs = rep_diffs[:best[1]+2]
 
-        return running_loss, train_accuracy, test_loss, test_accuracy, test_loss_full, rep_diffs
+        return running_loss, train_accuracy, test_loss, test_accuracy, test_loss_full, rep_diffs, log
 
     @torch.no_grad()
     def evaluate_AE(self, dataloader, criterion):

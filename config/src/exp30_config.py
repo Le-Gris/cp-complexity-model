@@ -4,7 +4,6 @@ Constraints on autoencoder (dimensionality reduction).
 Saving weightings from inner layer. 
 Inner representation CP measurements are non-linear. 
 Activation is sigmoidal all the way through.
-Inplace-noise = None
 thresh = 1%
 eval_mode = batch
 """
@@ -29,9 +28,9 @@ def sim_config():
                     'classifier_out': 2}
 
     # Set sim parameters
-    sim_params = OrderedDict({'train_ratio': 0.7, 'AE_epochs': 100, 
-                              'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-2,'AE_wd': 10e-5, 
-                              'AE_thresh': 0.01, '_patience': 4, 'class_epochs': 100, 'class_batch_size': 8, 'class_lr': 10e-2, 
+    sim_params = OrderedDict({'train_ratio': 0.75, 'AE_epochs': 150, 
+                              'AE_batch_size': 8, 'noise_factor': 0.1, 'AE_lr': 10e-3,'AE_wd': 10e-5, 
+                              'AE_thresh': 0.01, '_patience': 20, 'class_epochs': 150, 'class_batch_size': 8, 'class_lr': 10e-3, 
                               'class_wd': 10e-3, 'class_monitor': 'loss', 'class_thresh': 0.01, 'training': 'early_stop', 'eval_mode':'batch', 
                               'inplace_noise': True, 'rep_type': 'act', 'save_model': True, 'metric':'cosine', 'verbose': False, 'rep_diff':True})
     

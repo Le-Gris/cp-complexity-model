@@ -84,6 +84,14 @@ def get_model_arch(arch_name, layer_params):
         classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
                                         'relu_classifer': nn.ReLU()})
 
+    elif arch_name == 'nn-sig2':
+        encoder_config = OrderedDict({'lin1_encoder': nn.Linear(layer_params['encoder_in'], layer_params['encoder_out']), 'sig_encoder': nn.Sigmoid(), 
+            'lin2_encoder': nn.Linear(layer_params['encoder_in2'], layer_params['encoder_out2']),'sig_encoder2': nn.Sigmoid()})
+
+        decoder_config = OrderedDict({'lin1_decoder': nn.Linear(layer_params['decoder_in'], layer_params['decoder_out']), 'sig_decoder': nn.Sigmoid()})
+
+        classifier_config = OrderedDict({'lin1_classifier': nn.Linear(layer_params['classifier_in'], layer_params['classifier_out']),
+                                         'sig_classifier': nn.Sigmoid()})
     else:
         raise Exception('Incorrect model type: use \'conv\' or \'nn\' or \'nn-sig\'')
 
