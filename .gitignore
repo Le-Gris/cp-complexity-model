@@ -149,5 +149,6 @@ data/benchmark_stimuli
 data/continuous/*
 data/binary/*
 results/*
+data/*
 *.ipynb
 src/exp4_data.py
