@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import random
 import matplotlib.colors as colors
 import matplotlib.cm as cm
 import os
 import os.path as osp
 from os.path import join
 import argparse
+import pandas as pd
 
 def gabor(sigma, theta, Lambda, psi, gamma):
     """Gabor feature extraction."""
@@ -81,6 +81,12 @@ if __name__ == '__main__':
     set_dirname = 'set_lam_' + str(params[relev][vals[0]]) + '_'+ str(params[relev][vals[1]])
     if not osp.exists(join(gabor_dir, set_dirname)):
         os.mkdir(join(gabor_dir, set_dirname))
+    
+    # Initiate variables for csv
+    columns = ['stimfile', 'corrResp']
+    rows = []
+
+    corr_resp = ['q', 'p']
 
     # Generate stimuli
     for c in range(len(cats)):
@@ -122,8 +128,15 @@ if __name__ == '__main__':
                         # Save image
                         filename += '.jpeg'
                         plt.imsave(join(im_path, filename), gb, cmap='gray', vmin=-0.9, vmax=1)
+                        
+                        # Add row to table
+                        rows.append([osp.join('stim', str(cats[c])+'images', filename), corr_resp[c]])
 
                         #axs[count].imshow(gb, cmap=plt.get_cmap('gray'))
                         #axs[count].axis('off')
                         #count += 1
                         #plt.show()
+
+    # Save data to .csv
+    df = pd.DataFrame(data=rows, columns=columns)
+    df.to_csv(osp.join(cat_path, 'resp_list.csv'), index=False)
